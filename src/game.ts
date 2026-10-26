@@ -86,7 +86,17 @@ export class MaxFlizGameEngine {
   private speechBubbleTimer = 0;
   private levelStartTime = 0;
   private cameraShake = 0;
+  private screenShakeDuration = 0;
+  private screenShakeIntensity = 0;
+  private screenShakeTimer = 0;
   private cameraMode: 'iso' | 'close' = 'iso';
+
+  public triggerScreenShake(intensity: number, durationSec: number = 0.5) {
+    this.screenShakeIntensity = Math.max(this.screenShakeIntensity, intensity);
+    this.screenShakeDuration = durationSec;
+    this.screenShakeTimer = durationSec;
+    this.cameraShake = Math.max(this.cameraShake, intensity * 0.6);
+  }
   private marcinReclamationTimer = 0;
   private grzesiekCrushTimer = 0;
   private grzesiekCrushPulse = 0;
@@ -1618,9 +1628,28 @@ export class MaxFlizGameEngine {
       this.emitFloatingToast(`+${points} Pkt Neutralizacja!`, e.x, e.y + 1, e.z, 'points');
     }
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
-    if (e.type === 'walczak') {
+
+    if (e.type === 'walczak' || e.maxHp >= 3) {
       this.callbacks.onBossUpdate?.(e.name, 0, e.maxHp, false);
       this.sayQuote('BYŁY KIEROWNIK WALCZAK ZANEUTRALIZOWANY! Droga wolna!');
+
+      // Intense long screen shake for boss defeat!
+      this.triggerScreenShake(2.2, 1.25);
+
+      this.spawnParticleRing(e.x, e.y + 1.0, e.z, 0xef4444);
+      this.spawnParticleRing(e.x, e.y + 1.5, e.z, 0xf59e0b);
+      this.spawnParticleRing(e.x, e.y + 2.0, e.z, 0x3b82f6);
+
+      const geo = new THREE.TorusGeometry(1.2, 0.18, 16, 48);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.set(e.x, e.y + 0.5, e.z);
+      this.levelRoot.add(mesh);
+      this.specialEffects.push({ mesh, life: 1.2, maxLife: 1.2, grow: 12.0, spin: 15.0 });
+    } else {
+      // Mild screen shake for regular enemies
+      this.triggerScreenShake(0.35, 0.25);
     }
   }
 
@@ -1628,7 +1657,7 @@ export class MaxFlizGameEngine {
     if (this.invulnerableTimer > 0) return;
 
     if (this.marcinReclamationTimer > 0) {
-      this.cameraShake = 0.12;
+      this.triggerScreenShake(0.2, 0.2);
       return;
     }
 
@@ -1639,14 +1668,17 @@ export class MaxFlizGameEngine {
       this.sayQuote('Kask BHP amortyzował uderzenie!');
       this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 1, this.playerPos.z, 0x3b82f6);
       this.callbacks.onPerksUpdate?.(this.activePerks);
+      this.triggerScreenShake(0.4, 0.3);
       return;
     }
 
     this.hp--;
     this.invulnerableTimer = 1.8;
-    this.cameraShake = 0.6;
     sound.playHit();
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
+
+    // Screen Shake on damage received by player!
+    this.triggerScreenShake(0.9, 0.5);
 
     if (this.hp <= 0) {
       this.state = 'gameover';
@@ -1736,15 +1768,53 @@ export class MaxFlizGameEngine {
 
     const camTarget = new THREE.Vector3(targetX + offsetX, targetY + offsetY, targetZ + offsetZ);
 
-    if (this.cameraShake > 0) {
-      camTarget.x += (Math.random() - 0.5) * this.cameraShake;
-      camTarget.y += (Math.random() - 0.5) * this.cameraShake;
-      camTarget.z += (Math.random() - 0.5) * this.cameraShake;
-      this.cameraShake = Math.max(0, this.cameraShake - dt * 1.5);
+    let shakeX = 0;
+    let shakeY = 0;
+    let shakeZ = 0;
+
+    if (this.screenShakeTimer > 0) {
+      this.screenShakeTimer -= dt;
+      const progress = Math.max(0, this.screenShakeTimer / Math.max(0.001, this.screenShakeDuration));
+      const currentIntensity = this.screenShakeIntensity * Math.pow(progress, 1.2);
+
+      shakeX = (Math.random() - 0.5) * currentIntensity * 2.2;
+      shakeY = (Math.random() - 0.5) * currentIntensity * 2.2;
+      shakeZ = (Math.random() - 0.5) * currentIntensity * 2.2;
+
+      // DOM container shake transform
+      if (this.container) {
+        const domPxX = (Math.random() - 0.5) * currentIntensity * 28;
+        const domPxY = (Math.random() - 0.5) * currentIntensity * 28;
+        const domDeg = (Math.random() - 0.5) * currentIntensity * 3.5;
+        this.container.style.transform = `translate3d(${domPxX.toFixed(1)}px, ${domPxY.toFixed(1)}px, 0px) rotate(${domDeg.toFixed(2)}deg)`;
+      }
+
+      if (this.screenShakeTimer <= 0) {
+        this.screenShakeIntensity = 0;
+        if (this.container) {
+          this.container.style.transform = '';
+        }
+      }
+    } else if (this.cameraShake > 0) {
+      shakeX = (Math.random() - 0.5) * this.cameraShake;
+      shakeY = (Math.random() - 0.5) * this.cameraShake;
+      shakeZ = (Math.random() - 0.5) * this.cameraShake;
+      this.cameraShake = Math.max(0, this.cameraShake - dt * 2.0);
+      if (this.container && this.container.style.transform !== '') {
+        this.container.style.transform = '';
+      }
+    } else {
+      if (this.container && this.container.style.transform !== '') {
+        this.container.style.transform = '';
+      }
     }
 
-    this.camera.position.lerp(camTarget, dt * 5.0);
-    this.camera.lookAt(targetX, targetY + 0.8, targetZ);
+    camTarget.x += shakeX;
+    camTarget.y += shakeY;
+    camTarget.z += shakeZ;
+
+    this.camera.position.lerp(camTarget, dt * 6.0);
+    this.camera.lookAt(targetX + shakeX * 0.3, targetY + 0.8 + shakeY * 0.3, targetZ + shakeZ * 0.3);
 
     if (this.dirLight) {
       this.dirLight.position.set(this.playerPos.x + 14, 28, this.playerPos.z + 12);

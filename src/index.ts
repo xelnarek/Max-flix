@@ -94,7 +94,7 @@ class MaxFlizScene extends xb.Script {
     this.engine = new MaxFlizGameEngine(
       this as unknown as THREE.Scene,
       camera,
-      document.body,
+      (document.getElementById('game-canvas-container') || document.body) as HTMLElement,
       {
         onFloatingText: (text, x, y, z, type) => {
           spawnFloatingToast(text, x, y, z, type);
