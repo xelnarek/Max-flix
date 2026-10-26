@@ -11,7 +11,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     speed: 7.2,
     jumpForce: 8.8,
     abilityName: 'Pieczęć WZ-tki',
-    abilityDescription: 'Wbija pieczęć w podłogę! Ogłusza pobliskie wózki widłowe i uspokaja wściekłych klientów z fakturami.',
+    abilityDescription: 'Wbija pieczęć w podłogę i robi wyjazd na reklamacje! Ogłusza pobliskich wrogów, zamyka strefę chaosu i daje nieśmiertelność na 8 sekund.',
     abilityCooldown: 6.0,
     voiceLines: [
       'Gdzie jest podpis na dokumencie WZ?!',
@@ -31,23 +31,23 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   grzesiek: {
     id: 'grzesiek',
     name: 'Grzesiek',
-    role: 'Mistrz Wózka i Paleciaka',
-    title: 'Drifter z Alei Sanitariatów',
+    role: 'Sciskacz',
+    title: 'Mistrz 44 cm Obwodu Ramienia',
     color: 0x16a34a, // Emerald Green
     secondaryColor: 0x22c55e,
     speed: 8.8,
     jumpForce: 8.4,
-    abilityName: 'Turbo Paleciak',
-    abilityDescription: 'Błyskawiczny ślizg do przodu z paleciakiem! Taranuje przeszkody, ogłusza natrętów i pokonuje rozlany klej.',
+    abilityName: 'Ścisk Zagłady',
+    abilityDescription: 'Grzesiek robi pełen obrotny ścisk, miażdży przeciwników falą mocy i rozbija logistyczny chaos własnym 44-centymetrowym ramięm.',
     abilityCooldown: 4.5,
     voiceLines: [
-      'Robię zakręt na dwóch kołach, patrzcie na to!',
+      'Sciskam, bo muszę. To nie jest agresja, to logistyczna potrzeba!',
+      '44 cm obwodu ramienia i jeden ruch, a aleja robi się pusta!',
       'Pan Zdzichu mówi, że tak nie wolno, ale tak jest szybciej!',
-      'Gres 120x280cm na widłach? Żaden problem!',
       'Trąbcie jak wjeżdżam w aleję!',
       'Maksymalny załadunek to pojęcie względne!'
     ],
-    bio: 'Legenda korytarza C. Potrafi zawrócić wózkiem widłowym na monecie 5-złotowej. Nosi kamizelkę odblaskową z napisem "FAST & FLIZ-IOUS".',
+    bio: 'Legenda korytarza C. Potrafi zawrócić wózkiem widłowym na monecie 5-złotowej. Mierzy 44 cm w obwodzie ramienia i do tego walczy jak taran z zapasem energii do końca zmiany.',
     stats: {
       speed: 5,
       jump: 3,
@@ -69,7 +69,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     abilityCooldown: 5.0,
     voiceLines: [
       'Ja wiem lepiej, jak kłaść ten gres! Walczak nie ma pojęcia!',
-      'Architekt chciał fugę 0.5mm na ogrzewanie podłogowe?! Przecież gres musi pracować! Ja wiem najlepiej!',
+      'Architekt chciał położyć 3-metrowe płyty bez fugi na ogrzewanie podłogowe?! Przecież gres musi pracować! Ja wiem najlepiej!',
       'Zemsta za połamane płytki będzie cięta pod kątem 45 stopni z chłodzeniem wodnym!',
       'Płytka 120x280cm? Dajcie mi dwie na raz!',
       'Dla Max-Fliz i dla mnie nie ma rzeczy niemożliwych!'
@@ -128,7 +128,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       'Protokół odbioru? Przecież tu wszystko jest idealnie proste!',
       'Piotr tu był i zrobił absolutny porządek!'
     ],
-    bio: 'Były pracownik i żywa legenda magazynu Max-Fliz. Przetrwał 14 reorganizacji, a piosenki o jego wyczynach opowiada się przy ekspresie. Gdy wyciąga laserową poziomice, Walczak pęka!',
+    bio: 'Były pracownik i żywa legenda magazynu Max-Fliz. Przetrwał 14 reorganizacji, a piosenki o jego wyczynach opowiada się przy ekspresie. Gdy wyciąga laserową poziomice, Walczak pęka na samą myśl o czystości.',
     stats: {
       speed: 5,
       jump: 4,
