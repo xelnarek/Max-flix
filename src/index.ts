@@ -72,12 +72,34 @@ class MaxFlizScene extends xb.Script {
       }
     }
 
+    const tempProjVec = new THREE.Vector3();
+    const spawnFloatingToast = (text: string, x: number, y: number, z: number, type: 'points' | 'vip' | 'easter-egg' = 'points') => {
+      const popupsLayer = document.getElementById('floating-popups-layer');
+      if (!popupsLayer) return;
+      tempProjVec.set(x, y, z);
+      tempProjVec.project(camera);
+      const sx = (tempProjVec.x * 0.5 + 0.5) * window.innerWidth;
+      const sy = (-(tempProjVec.y * 0.5) + 0.5) * window.innerHeight;
+      const toast = document.createElement('div');
+      toast.className = `floating-score-toast ${type}`;
+      toast.textContent = text;
+      toast.style.left = `${Math.round(sx)}px`;
+      toast.style.top = `${Math.round(sy)}px`;
+      popupsLayer.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+      }, 1250);
+    };
+
     // Callbacks for engine updates
     this.engine = new MaxFlizGameEngine(
       this as unknown as THREE.Scene,
       camera,
       document.body,
       {
+        onFloatingText: (text, x, y, z, type) => {
+          spawnFloatingToast(text, x, y, z, type);
+        },
         onScoreUpdate: (score, collectedVip, totalVip) => {
           hudScore.textContent = score.toString();
           hudVip.textContent = `${collectedVip} / ${totalVip}`;
@@ -306,6 +328,7 @@ class MaxFlizScene extends xb.Script {
             Grzesiek: '🚜',
             Dawid: '💪',
             Mateusz: '☕',
+            Piotr: '👨‍🔧',
           };
           const heroIcon = heroIcons[entry.hero] || '👷‍♂️';
           const bossBadge = entry.bossDefeated ? '<span title="Były Kierownik Walczak skasowany!">👔💥</span>' : '';
@@ -342,7 +365,8 @@ class MaxFlizScene extends xb.Script {
 
     // Menu Tab Navigation Handlers
     document.querySelectorAll('.menu-tab-btn').forEach((tabBtn) => {
-      tabBtn.addEventListener('click', () => {
+      const activateTab = (e?: Event) => {
+        e?.stopPropagation();
         document.querySelectorAll('.menu-tab-btn').forEach((b) => b.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
         tabBtn.classList.add('active');
@@ -353,24 +377,28 @@ class MaxFlizScene extends xb.Script {
             renderLeaderboard();
           }
         }
-      });
+      };
+      tabBtn.addEventListener('click', activateTab);
     });
 
     // Character Selection Click Handlers
     document.querySelectorAll('.char-card').forEach((card) => {
-      card.addEventListener('click', () => {
+      const selectChar = (e?: Event) => {
+        e?.stopPropagation();
         document.querySelectorAll('.char-card').forEach((c) => c.classList.remove('active'));
         card.classList.add('active');
         const charId = card.getAttribute('data-char') as CharacterId;
         if (charId) {
           updateCharacterUI(charId);
         }
-      });
+      };
+      card.addEventListener('click', selectChar);
     });
 
     // Perk Shop Activation Buttons
     document.querySelectorAll('.btn-perk-activate').forEach((btn) => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const btnEl = e.currentTarget as HTMLElement;
         const perkId = btnEl.getAttribute('data-perk') as 'hardhat' | 'vibram_boots' | 'order_magnet' | 'espresso_boost';
         if (perkId) {
@@ -388,15 +416,22 @@ class MaxFlizScene extends xb.Script {
 
     // Zone Selection Card Handlers
     document.querySelectorAll('.zone-card').forEach((card) => {
-      card.addEventListener('click', () => {
+      const selectZone = (e?: Event) => {
+        e?.stopPropagation();
         document.querySelectorAll('.zone-card').forEach((c) => c.classList.remove('active'));
         card.classList.add('active');
         this.selectedLevelId = parseInt(card.getAttribute('data-level') || '1', 10);
-      });
+      };
+      card.addEventListener('click', selectZone);
     });
 
     // Start Game Action
-    const doStartGame = () => {
+    let startingGame = false;
+    const doStartGame = (e?: Event) => {
+      if (startingGame) return;
+      startingGame = true;
+      e?.stopPropagation();
+
       titleScreen.classList.add('hidden');
       pauseModal.classList.add('hidden');
       victoryModal.classList.add('hidden');
@@ -409,14 +444,12 @@ class MaxFlizScene extends xb.Script {
       touchControls.classList.remove('hidden');
 
       this.engine.startGame(this.selectedLevelId);
+      setTimeout(() => { startingGame = false; }, 600);
     };
 
     const startBtn = document.getElementById('btn-start-game');
-    startBtn?.addEventListener('click', doStartGame);
-    startBtn?.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      doStartGame();
-    }, { passive: false });
+    startBtn?.addEventListener('click', (e) => doStartGame(e));
+    startBtn?.addEventListener('touchend', (e) => doStartGame(e));
 
     window.addEventListener('keydown', (e) => {
       if (!titleScreen.classList.contains('hidden')) {
@@ -656,12 +689,10 @@ class MaxFlizScene extends xb.Script {
     // Setup Touch Virtual Joystick
     this.setupTouchControls();
 
-    // Start title cinematic & automatically launch animated story intro on first load
+    // Start title cinematic in background and launch Intro modal automatically after loading
     this.engine.startTitle();
-    if (storyModal) {
-      storyModal.classList.remove('hidden');
-      updateStorySlides(0);
-    }
+    storyModal?.classList.remove('hidden');
+    updateStorySlides(0);
   }
 
   private setupTouchControls() {

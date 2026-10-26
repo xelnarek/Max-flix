@@ -290,6 +290,32 @@ class SoundEngine {
     });
   }
 
+  public playEasterEgg() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      const st = t + idx * 0.055;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, st);
+
+      gain.gain.setValueAtTime(0.3, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.38);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(st);
+      osc.stop(st + 0.39);
+    });
+  }
+
   public playGameOver() {
     if (this.isMuted) return;
     this.initCtx();

@@ -1,6 +1,6 @@
 {
-  "name": " Max-Flix",
-  "description": "",
+  "name": "Max-Fliz Magazyn Showdown 3D",
+  "description": "Trójwymiarowa platformówka izometryczna w szalonym magazynie firmy Max-Fliz. Pokieruj Marcinem, Grześkiem, Dawidem, Mateuszem lub Piotrem, omijaj wózki widłowe i skacz po paletach z luksusowym gresem!",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -446,21 +446,47 @@ export function createCharacterModel(def: CharacterDef): {
     const helmetMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.25 });
     const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.32), helmetMat);
     helmet.position.y = 1.08;
-    group.add(helmet);
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.38), helmetMat);
+    brim.position.set(0, 1.03, 0.03);
+    // Industrial ear defenders
+    const earMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6 });
+    [-0.18, 0.18].forEach((ex) => {
+      const earMuff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 12), earMat);
+      earMuff.rotation.z = Math.PI / 2;
+      earMuff.position.set(ex, 1.05, 0);
+      group.add(earMuff);
+    });
+    group.add(helmet, brim);
   } else if (def.id === 'dawid') {
-    // Red Heavy Duty Hardhat
-    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.25 });
-    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.32), helmetMat);
+    // Orange/Red Heavy Duty Hardhat with chin strap
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.25 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.33, 0.15, 0.33), helmetMat);
     helmet.position.y = 1.08;
-    group.add(helmet);
-  } else {
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.03, 0.38), helmetMat);
+    brim.position.set(0, 1.03, 0.03);
+    group.add(helmet, brim);
+  } else if (def.id === 'mateusz') {
     // Mateusz Designer Cap backwards
-    const capMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.5 });
+    const capMat = new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.5 });
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.30), capMat);
     cap.position.y = 1.06;
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.14), capMat);
     visor.position.set(0, 1.03, -0.16);
     group.add(cap, visor);
+  } else {
+    // Piotr Senior Foreman Crimson Hardhat with Tactical LED Headlamp & Laser Visor
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.15 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.33, 0.15, 0.33), helmetMat);
+    helmet.position.y = 1.08;
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.03, 0.38), helmetMat);
+    brim.position.set(0, 1.03, 0.03);
+    // Tactical LED Headlamp
+    const lampMount = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.07, 0.05), new THREE.MeshStandardMaterial({ color: 0x18181b }));
+    lampMount.position.set(0, 1.09, 0.18);
+    const ledLens = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.04, 12), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+    ledLens.rotation.x = Math.PI / 2;
+    ledLens.position.set(0, 1.09, 0.21);
+    group.add(helmet, brim, lampMount, ledLens);
   }
 
   // 3. Legs & Leather Steel-toe Boots
@@ -556,7 +582,7 @@ export function createCharacterModel(def: CharacterDef): {
     accessory.add(tile);
     accessory.position.set(0, 0.58, 0.25);
     accessory.rotation.x = -0.15;
-  } else {
+  } else if (def.id === 'mateusz') {
     // Mateusz steaming ceramic espresso mug
     const mug = new THREE.Mesh(
       new THREE.CylinderGeometry(0.07, 0.06, 0.14, 16),
@@ -570,6 +596,30 @@ export function createCharacterModel(def: CharacterDef): {
     mug.add(coffeeInside);
     accessory.add(mug);
     accessory.position.set(0.26, 0.5, 0.18);
+  } else {
+    // Piotr Signature Precision Laser Level (Laserowa Poziomica Cyfrowa)
+    const levelBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.08, 0.07),
+      new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8, roughness: 0.2 })
+    );
+    // Spirit level vial window in center
+    const vial = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.04, 0.075),
+      new THREE.MeshBasicMaterial({ color: 0x84cc16 })
+    );
+    levelBody.add(vial);
+    // Front laser diode emitter
+    const laserDiode = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.015, 0.015, 0.03, 8),
+      new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+    laserDiode.rotation.z = Math.PI / 2;
+    laserDiode.position.set(0.23, 0, 0);
+    levelBody.add(laserDiode);
+    accessory.add(levelBody);
+    accessory.position.set(0.28, 0.52, 0.18);
+    accessory.rotation.y = 0.2;
+    accessory.rotation.x = 0.3;
   }
   group.add(accessory);
 
@@ -1689,5 +1739,199 @@ export function createVolumetricLightBeam(): THREE.Mesh {
   mesh.renderOrder = 5;
   return mesh;
 }
+
+/**
+ * 25. Holographic Finish Loading Gate (Rampa Załadunku / Cel Poziomu)
+ */
+export function createFinishGate(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'finish_gate';
+
+  const archMat = new THREE.MeshStandardMaterial({
+    color: 0x22c55e,
+    emissive: 0x15803d,
+    emissiveIntensity: 0.4,
+    roughness: 0.3,
+    metalness: 0.5,
+  });
+  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x4ade80 });
+
+  // Left & right support pillars
+  const pillarGeo = new THREE.BoxGeometry(0.18, 3.2, 0.18);
+  const pL = new THREE.Mesh(pillarGeo, archMat);
+  pL.position.set(0, 1.6, -1.4);
+  const pR = new THREE.Mesh(pillarGeo, archMat);
+  pR.position.set(0, 1.6, 1.4);
+
+  // Top overhead banner beam
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.45, 3.0), archMat);
+  beam.position.set(0, 3.2, 0);
+
+  // Beacons on pillars
+  const bL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.16, 12), beaconMat);
+  bL.position.set(0, 3.5, -1.4);
+  const bR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.16, 12), beaconMat);
+  bR.position.set(0, 3.5, 1.4);
+
+  // Glowing landing beacon ring on ground
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.8, 1.3, 32),
+    new THREE.MeshBasicMaterial({ color: 0x22c55e, side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.02;
+
+  group.add(pL, pR, beam, bL, bR, ring);
+  return group;
+}
+
+/**
+ * 26. Directional Safety Arrow on Floor
+ */
+export function createAisleArrow(length = 1.2): THREE.Group {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0x22c55e, side: THREE.DoubleSide });
+
+  const shaft = new THREE.Mesh(new THREE.PlaneGeometry(length * 0.6, 0.25), mat);
+  shaft.rotation.x = -Math.PI / 2;
+  shaft.position.x = -length * 0.2;
+  shaft.position.y = 0.015;
+
+  const head = new THREE.Mesh(new THREE.BufferGeometry(), mat);
+  const vertices = new Float32Array([
+    0, 0, -0.4,
+    length * 0.4, 0, 0,
+    0, 0, 0.4,
+  ]);
+  head.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  head.position.y = 0.015;
+
+  group.add(shaft, head);
+  return group;
+}
+
+/**
+ * 27. EASTER EGG: Złoty Tron Prezesa (24-karatowa toaleta z Włoch)
+ */
+export function createGoldenThroneEasterEgg(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'easter_egg_golden_throne';
+
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    metalness: 0.95,
+    roughness: 0.1,
+    emissive: 0x78350f,
+    emissiveIntensity: 0.35,
+  });
+
+  // Base Pedestal
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.38, 24), goldMat);
+  base.position.y = 0.19;
+  base.castShadow = true;
+
+  // Bowl
+  const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.65), goldMat);
+  bowl.position.y = 0.38;
+  bowl.rotation.x = Math.PI;
+
+  // Cistern tank at back
+  const cistern = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.22), goldMat);
+  cistern.position.set(0, 0.58, -0.22);
+  cistern.castShadow = true;
+
+  // Golden Crown / Halo floating above
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(0.28, 0.025, 8, 24),
+    new THREE.MeshBasicMaterial({ color: 0xfef08a })
+  );
+  halo.position.y = 1.05;
+  halo.rotation.x = Math.PI / 2;
+
+  group.add(base, bowl, cistern, halo);
+  group.scale.setScalar(1.1);
+  return group;
+}
+
+/**
+ * 28. EASTER EGG: Ukryty Kącik Kawowy Zdzicha (Vintage Espresso Machine)
+ */
+export function createVintageCoffeeCornerEasterEgg(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'easter_egg_coffee_corner';
+
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
+  const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.3, roughness: 0.4 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+
+  // Wooden table shelf
+  const table = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.06, 0.45), woodMat);
+  table.position.y = 0.03;
+
+  // Retro Italian Espresso Machine Body
+  const machine = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.32), redMat);
+  machine.position.set(0, 0.22, 0);
+
+  // Chrome Group Head & Boiler Lever
+  const boilerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 16), chromeMat);
+  boilerCap.position.set(0, 0.43, 0);
+  const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 12), chromeMat);
+  lever.position.set(0.18, 0.38, 0);
+  lever.rotation.z = -0.5;
+
+  // Steaming cup
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.09, 12), chromeMat);
+  cup.position.set(-0.16, 0.1, 0.08);
+
+  // Golden Sparkle
+  const spark = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.08, 0),
+    new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+  );
+  spark.position.set(0, 0.65, 0);
+
+  group.add(table, machine, boilerCap, lever, cup, spark);
+  return group;
+}
+
+/**
+ * 29. EASTER EGG: Zaginiona Teczka WZ z 2012 Roku (Złoty Certyfikat)
+ */
+export function createSecretFolderEasterEgg(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'easter_egg_secret_folder';
+
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    metalness: 0.9,
+    roughness: 0.15,
+    emissive: 0xb45309,
+    emissiveIntensity: 0.5,
+  });
+
+  // Glowing golden folder
+  const folder = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.46, 0.05), goldMat);
+  folder.position.y = 0.23;
+  folder.castShadow = true;
+
+  // Seal Ribbon
+  const ribbon = new THREE.Mesh(
+    new THREE.TorusGeometry(0.12, 0.02, 8, 16),
+    new THREE.MeshBasicMaterial({ color: 0xef4444 })
+  );
+  ribbon.position.set(0, 0.23, 0.035);
+
+  // Floating Star
+  const star = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.1, 0),
+    new THREE.MeshBasicMaterial({ color: 0xfef08a })
+  );
+  star.position.set(0, 0.6, 0);
+
+  group.add(folder, ribbon, star);
+  return group;
+}
+
+
 
 

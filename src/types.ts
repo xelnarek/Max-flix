@@ -32,7 +32,8 @@ export type CollectibleType =
   | 'espresso'
   | 'magnet'
   | 'golden_cutter'
-  | 'carrara';
+  | 'carrara'
+  | 'easter_egg';
 
 export interface CollectibleItem {
   id: string;
@@ -63,7 +64,7 @@ export interface EnemyItem {
   dir: number;
   hp: number;
   maxHp: number;
-  state: 'patrol' | 'chase' | 'stunned' | 'defeated';
+  state: 'patrol' | 'chase' | 'stunned' | 'defeated' | 'charging';
   stunTimer: number;
   shoutTimer: number;
   shoutText: string;
@@ -74,6 +75,9 @@ export interface EnemyItem {
   armL?: any;
   armR?: any;
   specialActionTimer?: number;
+  bossPhase?: number;
+  chargeDir?: number;
+  chargeTimer?: number;
 }
 
 export interface HazardItem {

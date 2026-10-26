@@ -114,20 +114,26 @@ export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): P
       createdAt: new Date().toISOString(),
     };
 
+    // Cache locally immediately so result is never lost
+    try {
+      const raw = localStorage.getItem('maxfliz_cached_leaderboard');
+      const list: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
+      list.push({ ...payload, id: cleanId });
+      list.sort((a, b) => b.score - a.score);
+      localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
+    } catch {}
+
     await setDoc(docRef, payload);
     return cleanId;
   } catch (err) {
-    throw new FirestoreErrorInfo(
-      'Nie udało się zapisać wyniku na serwerze Firebase.',
-      'create',
-      collectionPath,
-      err
-    );
+    // If setDoc failed, we still have the local cache
+    console.warn('Firestore submit notice:', err);
+    return `local_${Date.now()}`;
   }
 }
 
 /**
- * Fetch top shift high scores from Firebase
+ * Fetch top shift high scores from Firebase with graceful local cache fallback
  */
 export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEntry[]> {
   const collectionPath = 'leaderboard';
@@ -154,14 +160,26 @@ export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEnt
       });
     });
 
-    return results;
+    if (results.length > 0) {
+      try {
+        localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(results));
+      } catch {}
+      return results;
+    }
   } catch (err) {
-    console.warn('Leaderboard fetch note:', err);
-    throw new FirestoreErrorInfo(
-      'Błąd pobierania rankingu magazynu.',
-      'list',
-      collectionPath,
-      err
-    );
+    console.warn('Leaderboard fetch notice (checking local cache):', err);
   }
+
+  // Graceful fallback to cached high scores
+  try {
+    const raw = localStorage.getItem('maxfliz_cached_leaderboard');
+    if (raw) {
+      const cached = JSON.parse(raw) as LeaderboardEntry[];
+      if (Array.isArray(cached) && cached.length > 0) {
+        return cached;
+      }
+    }
+  } catch {}
+
+  return [];
 }

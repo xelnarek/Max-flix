@@ -81,12 +81,33 @@
             </div>
           </div>
           <div class="hud-top-quick-controls">
-            <button id="btn-top-camera" class="top-icon-btn" title="Kamera">📐</button>
-            <button id="btn-top-sound" class="top-icon-btn" title="Dźwięk"><span id="top-sound-icon">🔊</span></button>
-            <button id="btn-top-pause" class="top-icon-btn pause-top-btn" title="Pauza">⏸️ PAUZA</button>
+            <button id="btn-top-camera" class="top-icon-btn camera-top-btn" title="Zmień kąt widoku kamery (C)">
+              <span class="btn-ctrl-icon">📐</span>
+              <span class="btn-ctrl-label">
+                <span class="label-full">KAMERA 3D</span>
+                <span class="label-short">3D</span>
+              </span>
+            </button>
+            <button id="btn-top-sound" class="top-icon-btn sound-top-btn" title="Włącz / Wyłącz dźwięk i muzykę (M)">
+              <span id="top-sound-icon" class="btn-ctrl-icon">🔊</span>
+              <span id="top-sound-text" class="btn-ctrl-label">
+                <span class="label-full">DŹWIĘK</span>
+                <span class="label-short">AUDIO</span>
+              </span>
+            </button>
+            <button id="btn-top-pause" class="top-icon-btn pause-top-btn" title="Zatrzymaj grę (Esc / P)">
+              <span class="btn-ctrl-icon">⏸️</span>
+              <span class="btn-ctrl-label">
+                <span class="label-full">PAUZA</span>
+                <span class="label-short">PAUZA</span>
+              </span>
+            </button>
           </div>
         </div>
       </div>
+
+      <!-- Floating Score / Easter Egg Toast Layer -->
+      <div id="floating-popups-layer" class="floating-popups-layer" aria-hidden="true"></div>
 
       <!-- BOTTOM CONTROL DOCK (IN-GAME) -->
       <div id="hud-bottom" class="hud-layer hidden">
@@ -111,19 +132,19 @@
           </button>
 
           <!-- Camera Angle -->
-          <button id="btn-camera" class="dock-btn" title="Zmień kąt widoku">
+          <button id="btn-camera" class="dock-btn camera-dock-btn" title="Zmień kąt widoku (C)">
             <span class="btn-icon">📐</span>
-            <span class="btn-text">Kamera</span>
+            <span class="btn-text">Kamera 3D</span>
           </button>
 
           <!-- Audio Toggle -->
-          <button id="btn-sound" class="dock-btn" title="Dźwięk i muzyka">
+          <button id="btn-sound" class="dock-btn sound-dock-btn" title="Dźwięk i muzyka (M)">
             <span id="sound-icon" class="btn-icon">🔊</span>
-            <span class="btn-text">Audio</span>
+            <span id="sound-text" class="btn-text">Dźwięk</span>
           </button>
 
           <!-- Pause -->
-          <button id="btn-pause" class="dock-btn" title="Pauza (Esc)">
+          <button id="btn-pause" class="dock-btn pause-dock-btn" title="Pauza (Esc / P)">
             <span class="btn-icon">⏸️</span>
             <span class="btn-text">Pauza</span>
           </button>
