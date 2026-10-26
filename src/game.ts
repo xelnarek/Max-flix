@@ -288,6 +288,21 @@ export class MaxFlizGameEngine {
 
   public startTitle() {
     this.state = 'title';
+    this.hp = this.maxHp;
+    this.score = 0;
+    this.collectedVipCount = 0;
+    this.abilityTimer = 0;
+    this.activePerks = {
+      doubleJump: 0,
+      shield: false,
+      magnet: 0,
+      speedBoost: 0,
+    };
+    this.marcinReclamationTimer = 0;
+    this.grzesiekCrushTimer = 0;
+    this.grzesiekCrushPulse = 0;
+    this.callbacks.onPerksUpdate?.(this.activePerks);
+    this.callbacks.onSpeechBubble('');
     this.rebuildPlayerMesh();
     this.playerPos.set(0, 0.5, 0);
     this.callbacks.onBossUpdate?.('', 0, 0, false);
@@ -304,6 +319,15 @@ export class MaxFlizGameEngine {
     this.marcinReclamationTimer = 0;
     this.grzesiekCrushTimer = 0;
     this.grzesiekCrushPulse = 0;
+    this.activePerks = {
+      doubleJump: 0,
+      shield: false,
+      magnet: 0,
+      speedBoost: 0,
+    };
+    this.cameraMode = 'iso';
+    this.callbacks.onPerksUpdate?.(this.activePerks);
+    this.callbacks.onSpeechBubble('');
     this.loadLevel(levelId);
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
