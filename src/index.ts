@@ -64,7 +64,6 @@ class MaxFlizScene extends xb.Script {
     const perkBadgeSpeed = document.getElementById('perk-badge-speed');
     const perkSpeedTimer = document.getElementById('perk-speed-timer');
 
-    // Move renderer canvas into container if available
     const container = document.getElementById('game-canvas-container');
     if (container && xb.core.renderer && xb.core.renderer.domElement) {
       if (xb.core.renderer.domElement.parentElement !== container) {
@@ -91,7 +90,6 @@ class MaxFlizScene extends xb.Script {
       }, 1250);
     };
 
-    // Callbacks for engine updates
     this.engine = new MaxFlizGameEngine(
       this as unknown as THREE.Scene,
       camera,
@@ -171,7 +169,6 @@ class MaxFlizScene extends xb.Script {
           touchControls.classList.add('hidden');
           bossHudBar?.classList.add('hidden');
 
-          // Reset Victory Submission Form
           const nickInput = document.getElementById('player-nickname-input') as HTMLInputElement | null;
           const submitBtn = document.getElementById('btn-submit-score') as HTMLButtonElement | null;
           const feedbackMsg = document.getElementById('submit-feedback-msg');
@@ -210,7 +207,6 @@ class MaxFlizScene extends xb.Script {
       }
     );
 
-    // Initial character sync
     const updateCharacterUI = (id: CharacterId) => {
       this.selectedCharId = id;
       const def = CHARACTERS[id];
@@ -263,7 +259,6 @@ class MaxFlizScene extends xb.Script {
         detailSkill.innerHTML = `<strong>Umiejętność:</strong> ${def.abilityName} – ${def.abilityDescription}`;
       }
 
-      // Update Numerical Stat Bars
       const statBarSpeed = document.getElementById('stat-bar-speed');
       const statValSpeed = document.getElementById('stat-val-speed');
       const statBarJump = document.getElementById('stat-bar-jump');
@@ -295,7 +290,6 @@ class MaxFlizScene extends xb.Script {
 
     updateCharacterUI('marcin');
 
-    // Firebase Leaderboard Rendering
     const leaderboardLoading = document.getElementById('leaderboard-loading');
     const leaderboardList = document.getElementById('leaderboard-list');
 
@@ -358,12 +352,10 @@ class MaxFlizScene extends xb.Script {
       }
     };
 
-    // Refresh Leaderboard Button
     document.getElementById('btn-refresh-leaderboard')?.addEventListener('click', () => {
       renderLeaderboard();
     });
 
-    // Menu Tab Navigation Handlers
     document.querySelectorAll('.menu-tab-btn').forEach((tabBtn) => {
       const activateTab = (e?: Event) => {
         e?.stopPropagation();
@@ -381,7 +373,6 @@ class MaxFlizScene extends xb.Script {
       tabBtn.addEventListener('click', activateTab);
     });
 
-    // Character Selection Click Handlers
     document.querySelectorAll('.char-card').forEach((card) => {
       const selectChar = (e?: Event) => {
         e?.stopPropagation();
@@ -395,7 +386,6 @@ class MaxFlizScene extends xb.Script {
       card.addEventListener('click', selectChar);
     });
 
-    // Perk Shop Activation Buttons
     document.querySelectorAll('.btn-perk-activate').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -414,7 +404,6 @@ class MaxFlizScene extends xb.Script {
       });
     });
 
-    // Zone Selection Card Handlers
     document.querySelectorAll('.zone-card').forEach((card) => {
       const selectZone = (e?: Event) => {
         e?.stopPropagation();
@@ -425,13 +414,14 @@ class MaxFlizScene extends xb.Script {
       card.addEventListener('click', selectZone);
     });
 
-    // Start Game Action
     let startingGame = false;
     const doStartGame = (e?: Event) => {
       if (startingGame) return;
       startingGame = true;
       e?.stopPropagation();
 
+      const storyModal = document.getElementById('story-intro-modal');
+      storyModal?.classList.add('hidden');
       titleScreen.classList.add('hidden');
       pauseModal.classList.add('hidden');
       victoryModal.classList.add('hidden');
@@ -439,8 +429,6 @@ class MaxFlizScene extends xb.Script {
 
       hudTop.classList.remove('hidden');
       hudBottom.classList.remove('hidden');
-
-      // Always show touch controls on mobile or touch displays
       touchControls.classList.remove('hidden');
 
       this.engine.startGame(this.selectedLevelId);
@@ -452,25 +440,24 @@ class MaxFlizScene extends xb.Script {
     startBtn?.addEventListener('touchend', (e) => doStartGame(e));
 
     window.addEventListener('keydown', (e) => {
+      const storyModal = document.getElementById('story-intro-modal');
+      const modalVisible = storyModal && !storyModal.classList.contains('hidden');
       if (!titleScreen.classList.contains('hidden')) {
-        if (e.code === 'Enter' || e.code === 'Space') {
+        if ((e.code === 'Enter' || e.code === 'Space') && !modalVisible) {
           doStartGame();
           e.preventDefault();
         }
       }
     });
 
-    // HUD Attack Button
     document.getElementById('btn-attack')?.addEventListener('click', () => {
       this.engine.triggerAttack();
     });
 
-    // HUD Ability Button
     document.getElementById('btn-ability')?.addEventListener('click', () => {
       this.engine.triggerAbility();
     });
 
-    // Top Quick Controls
     document.getElementById('btn-top-camera')?.addEventListener('click', () => {
       this.engine.toggleCameraMode();
     });
@@ -493,7 +480,6 @@ class MaxFlizScene extends xb.Script {
     document.getElementById('btn-top-pause')?.addEventListener('click', handlePause);
     document.getElementById('btn-pause')?.addEventListener('click', handlePause);
 
-    // Story Modal Logic
     const storyModal = document.getElementById('story-intro-modal');
     const btnOpenStory = document.getElementById('btn-open-story-modal');
     const btnCloseStory = document.getElementById('btn-close-story');
@@ -560,12 +546,10 @@ class MaxFlizScene extends xb.Script {
       });
     });
 
-    // Camera Switcher
     document.getElementById('btn-camera')?.addEventListener('click', () => {
       this.engine.toggleCameraMode();
     });
 
-    // HUD Attack & Ability Buttons
     document.getElementById('btn-attack')?.addEventListener('click', () => {
       this.engine.triggerAttack();
     });
@@ -574,19 +558,16 @@ class MaxFlizScene extends xb.Script {
       this.engine.triggerAbility();
     });
 
-    // Resume button
     document.getElementById('btn-resume')?.addEventListener('click', () => {
       pauseModal.classList.add('hidden');
       this.engine.togglePause();
     });
 
-    // Restart in Pause
     document.getElementById('btn-restart-pause')?.addEventListener('click', () => {
       pauseModal.classList.add('hidden');
       this.engine.startGame(this.selectedLevelId);
     });
 
-    // Return to Menu in Pause
     document.getElementById('btn-menu-pause')?.addEventListener('click', () => {
       pauseModal.classList.add('hidden');
       hudTop.classList.add('hidden');
@@ -596,7 +577,6 @@ class MaxFlizScene extends xb.Script {
       this.engine.startTitle();
     });
 
-    // Victory Next Level
     document.getElementById('btn-next-level')?.addEventListener('click', () => {
       victoryModal.classList.add('hidden');
       hudTop.classList.remove('hidden');
@@ -606,7 +586,6 @@ class MaxFlizScene extends xb.Script {
       this.engine.startGame(this.selectedLevelId);
     });
 
-    // Victory Replay
     document.getElementById('btn-replay-level')?.addEventListener('click', () => {
       victoryModal.classList.add('hidden');
       hudTop.classList.remove('hidden');
@@ -615,14 +594,12 @@ class MaxFlizScene extends xb.Script {
       this.engine.startGame(this.selectedLevelId);
     });
 
-    // Victory to Menu
     document.getElementById('btn-menu-victory')?.addEventListener('click', () => {
       victoryModal.classList.add('hidden');
       titleScreen.classList.remove('hidden');
       this.engine.startTitle();
     });
 
-    // Game Over Retry
     document.getElementById('btn-retry')?.addEventListener('click', () => {
       gameoverModal.classList.add('hidden');
       hudTop.classList.remove('hidden');
@@ -631,14 +608,12 @@ class MaxFlizScene extends xb.Script {
       this.engine.startGame(this.selectedLevelId);
     });
 
-    // Game Over to Menu
     document.getElementById('btn-menu-gameover')?.addEventListener('click', () => {
       gameoverModal.classList.add('hidden');
       titleScreen.classList.remove('hidden');
       this.engine.startTitle();
     });
 
-    // Victory High Score Submit Button
     const submitBtn = document.getElementById('btn-submit-score') as HTMLButtonElement | null;
     const nickInput = document.getElementById('player-nickname-input') as HTMLInputElement | null;
     const feedbackMsg = document.getElementById('submit-feedback-msg');
@@ -681,15 +656,12 @@ class MaxFlizScene extends xb.Script {
       }
     });
 
-    // Background Firebase init & warm up
     initAuth().catch(console.warn);
     testFirestoreConnection().catch(console.warn);
     renderLeaderboard();
 
-    // Setup Touch Virtual Joystick
     this.setupTouchControls();
 
-    // Start title cinematic in background and launch Intro modal automatically after loading
     this.engine.startTitle();
     storyModal?.classList.remove('hidden');
     updateStorySlides(0);
@@ -771,7 +743,6 @@ class MaxFlizScene extends xb.Script {
     window.addEventListener('touchcancel', resetJoystick, { passive: true });
     window.addEventListener('blur', resetJoystick);
 
-    // Touch Action Buttons
     const attackBtn = document.getElementById('btn-touch-attack');
     attackBtn?.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -819,7 +790,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   xb.add(new MaxFlizScene());
   await xb.init(options);
 
-  // Configure high-definition rendering (Poco F6 / 120Hz / retina displays)
   if (xb.core.renderer) {
     const webglRenderer = xb.core.renderer as THREE.WebGLRenderer;
     const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
@@ -836,7 +806,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Ensure any injected XR button overlay doesn't block screen
   const xrWrapper = document.getElementById('XRButtonWrapper');
   if (xrWrapper) {
     xrWrapper.style.display = 'none';
