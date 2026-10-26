@@ -87,6 +87,9 @@ export class MaxFlizGameEngine {
   private levelStartTime = 0;
   private cameraShake = 0;
   private cameraMode: 'iso' | 'close' = 'iso';
+  private marcinReclamationTimer = 0;
+  private grzesiekCrushTimer = 0;
+  private grzesiekCrushPulse = 0;
 
   // Active Perks & Jump Modifiers
   private activePerks: ActivePerks = {
@@ -291,6 +294,9 @@ export class MaxFlizGameEngine {
     this.collectedVipCount = 0;
     this.abilityTimer = 0;
     this.levelStartTime = performance.now();
+    this.marcinReclamationTimer = 0;
+    this.grzesiekCrushTimer = 0;
+    this.grzesiekCrushPulse = 0;
     this.loadLevel(levelId);
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
@@ -319,6 +325,9 @@ export class MaxFlizGameEngine {
     this.projectiles = [];
     this.totalVipCount = 0;
     this.collectedVipCount = 0;
+    this.marcinReclamationTimer = 0;
+    this.grzesiekCrushTimer = 0;
+    this.grzesiekCrushPulse = 0;
   }
 
   public loadLevel(levelId: number) {
@@ -860,6 +869,9 @@ export class MaxFlizGameEngine {
 
     if (this.state === 'playing') {
       if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+      if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - dt);
+      if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - dt);
+      if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - dt);
       if (this.speechBubbleTimer > 0) {
         this.speechBubbleTimer -= dt;
         if (this.speechBubbleTimer <= 0) {
@@ -967,6 +979,22 @@ export class MaxFlizGameEngine {
         this.leftArm.rotation.x = 0;
         this.rightArm.rotation.x = 0;
       }
+    }
+
+    if (this.grzesiekCrushTimer > 0) {
+      const t = 1 - this.grzesiekCrushTimer / 0.9;
+      const swing = Math.sin(t * Math.PI);
+      if (this.leftArm && this.rightArm) {
+        this.leftArm.rotation.z = -1.2 + swing * 1.5;
+        this.rightArm.rotation.z = 1.2 - swing * 1.5;
+        this.leftArm.rotation.x = -1.3 + swing * 1.8;
+        this.rightArm.rotation.x = -1.3 + swing * 1.8;
+      }
+    }
+
+    if (this.marcinReclamationTimer > 0 && this.playerGroup) {
+      const pulse = 1 + Math.sin(performance.now() * 0.02) * 0.08;
+      this.playerGroup.scale.set(pulse, 1.08, pulse);
     }
 
     if (this.attackCooldownTimer > 0) this.attackCooldownTimer -= dt;
@@ -1187,7 +1215,6 @@ export class MaxFlizGameEngine {
           this.takeDamage(`Potrącił Cię: ${e.name}!`);
         }
       } else if (e.type === 'walczak') {
-        // Boss Walczak AI
         e.x += e.speed * e.dir * dt;
         if (e.dir > 0 && e.x >= e.endX) {
           e.dir = -1;
@@ -1226,7 +1253,6 @@ export class MaxFlizGameEngine {
   }
 
   private updateProjectiles(dt: number) {
-    // Player attack projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.life -= dt;
@@ -1244,15 +1270,7 @@ export class MaxFlizGameEngine {
           this.spawnParticleRing(e.x, e.y + 0.8, e.z, 0xf59e0b);
 
           if (e.hp <= 0) {
-            e.state = 'defeated';
-            e.mesh.visible = false;
-            this.score += 250;
-            this.emitFloatingToast('+250 Pkt Neutralizacja!', e.x, e.y + 1, e.z, 'points');
-            this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
-            if (e.type === 'walczak') {
-              this.callbacks.onBossUpdate?.(e.name, 0, e.maxHp, false);
-              this.sayQuote('BYŁY KIEROWNIK WALCZAK ZANEUTRALIZOWANY! Droga wolna!');
-            }
+            this.defeatEnemy(e, 250, true);
           } else {
             e.stunTimer = 0.6;
             e.state = 'stunned';
@@ -1266,7 +1284,6 @@ export class MaxFlizGameEngine {
       }
     }
 
-    // Enemy projectiles
     for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
       const ep = this.enemyProjectiles[i];
       ep.life -= dt;
@@ -1328,20 +1345,54 @@ export class MaxFlizGameEngine {
     this.abilityTimer = this.charDef.abilityCooldown;
 
     sound.playAbility(this.currentCharacterId);
-    this.sayQuote(`${this.charDef.abilityName.toUpperCase()}! ${this.charDef.abilityDescription}`);
     this.cameraShake = 0.45;
     this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, this.charDef.color);
 
     if (this.currentCharacterId === 'marcin') {
+      this.marcinReclamationTimer = 8;
+      this.invulnerableTimer = Math.max(this.invulnerableTimer, 8);
+      this.sayQuote('WYJAZD NA REKLAMACJE! Kierownik przejmuje strefę i zamyka sprawę bez zbędnych pytań!');
+      sound.playReclamation();
+      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, 0xcbd5e1);
+      const radius = 7.0;
       this.enemies.forEach((e) => {
+        if (e.state === 'defeated') return;
         const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
-        if (dist < 7.0 && e.state !== 'defeated') {
+        if (dist < radius) {
           e.stunTimer = 4.0;
           e.state = 'stunned';
+          e.hp = Math.max(0, e.hp - 1);
+          if (e.hp <= 0) {
+            this.defeatEnemy(e, 220, false);
+          }
         }
       });
     } else if (this.currentCharacterId === 'grzesiek') {
-      this.activatePerk('espresso_boost', 8);
+      this.grzesiekCrushTimer = 0.9;
+      this.grzesiekCrushPulse = 1.0;
+      const forward = new THREE.Vector3(Math.sin(this.playerRot), 0, Math.cos(this.playerRot));
+      this.playerPos.x += forward.x * 1.6;
+      this.playerPos.z += forward.z * 1.6;
+      this.sayQuote('ŚCIŚK ZAGŁADY! 44 cm obwodu ramienia. Tu nie ma już miejsca na wątpliwości!');
+      sound.playSciskCrush();
+      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, 0x4ade80);
+      this.enemies.forEach((e) => {
+        if (e.state === 'defeated') return;
+        const dx = e.x - this.playerPos.x;
+        const dz = e.z - this.playerPos.z;
+        const dist = Math.hypot(dx, dz);
+        const dirDot = (dx * forward.x + dz * forward.z) / Math.max(1, dist);
+        if (dist < 4.6 && dirDot > -0.2) {
+          e.hp -= 2;
+          e.stunTimer = 1.2;
+          e.state = 'stunned';
+          this.cameraShake = 0.55;
+          this.spawnParticleRing(e.x, e.y + 0.6, e.z, 0x86efac);
+          if (e.hp <= 0) {
+            this.defeatEnemy(e, 280, false);
+          }
+        }
+      });
     } else if (this.currentCharacterId === 'dawid') {
       this.activatePerk('hardhat', 15);
     } else if (this.currentCharacterId === 'mateusz') {
@@ -1352,8 +1403,28 @@ export class MaxFlizGameEngine {
     }
   }
 
+  private defeatEnemy(e: EnemyItem, points: number, showToast: boolean = true) {
+    if (e.state === 'defeated') return;
+    e.state = 'defeated';
+    e.mesh.visible = false;
+    this.score += points;
+    if (showToast) {
+      this.emitFloatingToast(`+${points} Pkt Neutralizacja!`, e.x, e.y + 1, e.z, 'points');
+    }
+    this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
+    if (e.type === 'walczak') {
+      this.callbacks.onBossUpdate?.(e.name, 0, e.maxHp, false);
+      this.sayQuote('BYŁY KIEROWNIK WALCZAK ZANEUTRALIZOWANY! Droga wolna!');
+    }
+  }
+
   private takeDamage(reason: string) {
     if (this.invulnerableTimer > 0) return;
+
+    if (this.marcinReclamationTimer > 0) {
+      this.cameraShake = 0.12;
+      return;
+    }
 
     if (this.activePerks.shield) {
       this.activePerks.shield = false;
@@ -1410,7 +1481,7 @@ export class MaxFlizGameEngine {
   }
 
   private spawnParticleRing(x: number, y: number, z: number, color = 0x38bdf8) {
-    const num = 14;
+    const num = 16;
     for (let i = 0; i < num; i++) {
       const angle = (i / num) * Math.PI * 2;
       const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
