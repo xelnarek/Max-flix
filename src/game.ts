@@ -128,6 +128,13 @@ export class MaxFlizGameEngine {
     vel: THREE.Vector3;
     life: number;
   }[] = [];
+  private specialEffects: {
+    mesh: THREE.Mesh;
+    life: number;
+    maxLife: number;
+    grow: number;
+    spin: number;
+  }[] = [];
 
   // Input state
   private keys: Record<string, boolean> = {};
@@ -323,6 +330,7 @@ export class MaxFlizGameEngine {
     this.enemyProjectiles = [];
     this.particles = [];
     this.projectiles = [];
+    this.specialEffects = [];
     this.totalVipCount = 0;
     this.collectedVipCount = 0;
     this.marcinReclamationTimer = 0;
@@ -884,6 +892,7 @@ export class MaxFlizGameEngine {
       this.updateHazards(dt);
       this.updateEnemies(dt);
       this.updateProjectiles(dt);
+      this.updateSpecialEffects(dt);
       this.updateParticles(dt);
     }
 
@@ -1304,6 +1313,50 @@ export class MaxFlizGameEngine {
     }
   }
 
+  private updateSpecialEffects(dt: number) {
+    for (let i = this.specialEffects.length - 1; i >= 0; i--) {
+      const effect = this.specialEffects[i];
+      effect.life -= dt;
+      const t = 1 - effect.life / effect.maxLife;
+      effect.mesh.scale.setScalar(1 + t * effect.grow);
+      effect.mesh.rotation.z += dt * effect.spin;
+      const mat = effect.mesh.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial | undefined;
+      if (mat && 'opacity' in mat) {
+        mat.opacity = Math.max(0, (effect.life / effect.maxLife) * 0.9);
+      }
+      if (effect.life <= 0) {
+        this.levelRoot.remove(effect.mesh);
+        this.specialEffects.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnGrzesiekShockwave() {
+    const geo = new THREE.TorusGeometry(0.9, 0.12, 14, 48);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x4ade80,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set(this.playerPos.x, this.playerPos.y + 0.12, this.playerPos.z);
+    mesh.scale.setScalar(0.2);
+    this.levelRoot.add(mesh);
+    this.specialEffects.push({ mesh, life: 0.7, maxLife: 0.7, grow: 7.5, spin: 9.0 });
+
+    const ring2 = new THREE.Mesh(
+      new THREE.TorusGeometry(1.2, 0.08, 12, 32),
+      new THREE.MeshBasicMaterial({ color: 0x86efac, transparent: true, opacity: 0.65, side: THREE.DoubleSide })
+    );
+    ring2.rotation.x = Math.PI / 2;
+    ring2.position.set(this.playerPos.x, this.playerPos.y + 0.12, this.playerPos.z);
+    ring2.scale.setScalar(0.18);
+    this.levelRoot.add(ring2);
+    this.specialEffects.push({ mesh: ring2, life: 0.6, maxLife: 0.6, grow: 8.5, spin: -7.0 });
+  }
+
   private updateParticles(dt: number) {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
@@ -1370,6 +1423,7 @@ export class MaxFlizGameEngine {
     } else if (this.currentCharacterId === 'grzesiek') {
       this.grzesiekCrushTimer = 0.9;
       this.grzesiekCrushPulse = 1.0;
+      this.spawnGrzesiekShockwave();
       const forward = new THREE.Vector3(Math.sin(this.playerRot), 0, Math.cos(this.playerRot));
       this.playerPos.x += forward.x * 1.6;
       this.playerPos.z += forward.z * 1.6;
