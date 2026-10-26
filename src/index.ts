@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as xb from 'xrblocks';
 import { CHARACTERS } from './characters.ts';
 import {
+  ensureLeaderboardServices,
   initAuth,
   testFirestoreConnection,
   submitScore,
@@ -367,6 +368,7 @@ class MaxFlizScene extends xb.Script {
           document.getElementById(targetId)?.classList.add('active');
           if (targetId === 'tab-leaderboard') {
             renderLeaderboard();
+            ensureLeaderboardServices().catch(console.warn);
           }
         }
       };
@@ -656,8 +658,7 @@ class MaxFlizScene extends xb.Script {
       }
     });
 
-    initAuth().catch(console.warn);
-    testFirestoreConnection().catch(console.warn);
+    ensureLeaderboardServices().catch(console.warn);
     renderLeaderboard();
 
     this.setupTouchControls();
@@ -792,13 +793,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (xb.core.renderer) {
     const webglRenderer = xb.core.renderer as THREE.WebGLRenderer;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    webglRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    webglRenderer.setClearColor(0x0b1020, 1);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     if (typeof webglRenderer.setPixelRatio === 'function') {
       webglRenderer.setPixelRatio(dpr);
     }
     if ('toneMapping' in webglRenderer) {
       webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-      webglRenderer.toneMappingExposure = 1.15;
+      webglRenderer.toneMappingExposure = 1.12;
     }
     if (webglRenderer.shadowMap) {
       webglRenderer.shadowMap.enabled = true;
