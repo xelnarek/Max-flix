@@ -14,6 +14,27 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
+const isBrowser = typeof window !== 'undefined';
+
+const safeStorage = {
+  getItem(key: string): string | null {
+    if (!isBrowser || !window.localStorage) return null;
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    if (!isBrowser || !window.localStorage) return;
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // ignore storage quota errors gracefully
+    }
+  },
+};
+
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
@@ -83,33 +104,49 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 let currentUser: User | null = null;
 let isAuthInitialized = false;
+let authPromise: Promise<User | null> | null = null;
 
 // Ensure anonymous sign-in for seamless leaderboard attribution
 export function initAuth(): Promise<User | null> {
-  return new Promise((resolve) => {
+  if (authPromise) return authPromise;
+
+  authPromise = new Promise((resolve) => {
     if (isAuthInitialized && currentUser) {
       resolve(currentUser);
       return;
     }
 
-    onAuthStateChanged(auth, (user) => {
+    const finish = (user: User | null) => {
       currentUser = user;
       isAuthInitialized = true;
-      if (!user) {
-        signInAnonymously(auth)
-          .then((cred) => {
-            currentUser = cred.user;
-            resolve(cred.user);
-          })
-          .catch((err) => {
-            console.warn('Anonymous auth note (fallback to guest mode):', err);
-            resolve(null);
-          });
-      } else {
-        resolve(user);
+      resolve(user);
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        finish(user);
+        return;
       }
+
+      signInAnonymously(auth)
+        .then((cred) => finish(cred.user))
+        .catch((err) => {
+          console.warn('Anonymous auth note (fallback to guest mode):', err);
+          finish(null);
+        });
     });
   });
+
+  return authPromise;
+}
+
+export async function ensureLeaderboardServices(): Promise<void> {
+  try {
+    await initAuth();
+    await testFirestoreConnection();
+  } catch (error) {
+    console.warn('Leaderboard service warm-up skipped:', error);
+  }
 }
 
 // Test connection on boot per guidelines
@@ -148,14 +185,15 @@ export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): P
     createdAt: new Date().toISOString(),
   };
 
-  // Cache locally immediately so result is never lost
   try {
-    const raw = localStorage.getItem('maxfliz_cached_leaderboard');
+    const raw = safeStorage.getItem('maxfliz_cached_leaderboard');
     const list: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
     list.push({ ...payload, id: cleanId });
     list.sort((a, b) => b.score - a.score);
-    localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
-  } catch {}
+    safeStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
+  } catch {
+    // ignore local cache failures
+  }
 
   try {
     const docRef = doc(db, collectionPath, cleanId);
@@ -196,25 +234,24 @@ export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEnt
     });
 
     if (results.length > 0) {
-      try {
-        localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(results));
-      } catch {}
+      safeStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(results));
       return results;
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, collectionPath);
   }
 
-  // Graceful fallback to cached high scores
   try {
-    const raw = localStorage.getItem('maxfliz_cached_leaderboard');
+    const raw = safeStorage.getItem('maxfliz_cached_leaderboard');
     if (raw) {
       const cached = JSON.parse(raw) as LeaderboardEntry[];
       if (Array.isArray(cached) && cached.length > 0) {
         return cached;
       }
     }
-  } catch {}
+  } catch {
+    // ignore parse errors and fall back to empty array
+  }
 
   return [];
 }
