@@ -15,11 +15,7 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3000,
       strictPort: false,
-      hmr: {
-        host: isAiStudio ? 'localhost' : '0.0.0.0',
-        port: 3000,
-        protocol: 'ws',
-      },
+      hmr: false,
       watch: {
         usePolling: isAiStudio || isDev,
       },
