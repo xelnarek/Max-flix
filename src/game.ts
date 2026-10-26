@@ -129,11 +129,12 @@ export class MaxFlizGameEngine {
     life: number;
   }[] = [];
   private specialEffects: {
-    mesh: THREE.Mesh;
+    mesh: THREE.Mesh | THREE.Group;
     life: number;
     maxLife: number;
     grow: number;
     spin: number;
+    update?: (dt: number, progress: number) => void;
   }[] = [];
 
   // Input state
@@ -1342,12 +1343,18 @@ export class MaxFlizGameEngine {
       const effect = this.specialEffects[i];
       effect.life -= dt;
       const t = 1 - effect.life / effect.maxLife;
-      effect.mesh.scale.setScalar(1 + t * effect.grow);
-      effect.mesh.rotation.z += dt * effect.spin;
-      const mat = effect.mesh.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial | undefined;
-      if (mat && 'opacity' in mat) {
-        mat.opacity = Math.max(0, (effect.life / effect.maxLife) * 0.9);
+
+      if (effect.update) {
+        effect.update(dt, t);
+      } else {
+        effect.mesh.scale.setScalar(1 + t * effect.grow);
+        effect.mesh.rotation.z += dt * effect.spin;
+        const mat = (effect.mesh as THREE.Mesh).material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial | undefined;
+        if (mat && 'opacity' in mat) {
+          mat.opacity = Math.max(0, (effect.life / effect.maxLife) * 0.9);
+        }
       }
+
       if (effect.life <= 0) {
         this.levelRoot.remove(effect.mesh);
         this.specialEffects.splice(i, 1);
@@ -1356,6 +1363,7 @@ export class MaxFlizGameEngine {
   }
 
   private spawnGrzesiekShockwave() {
+    // 1. Ground Shockwaves
     const geo = new THREE.TorusGeometry(0.9, 0.12, 14, 48);
     const mat = new THREE.MeshBasicMaterial({
       color: 0x4ade80,
@@ -1379,6 +1387,126 @@ export class MaxFlizGameEngine {
     ring2.scale.setScalar(0.18);
     this.levelRoot.add(ring2);
     this.specialEffects.push({ mesh: ring2, life: 0.6, maxLife: 0.6, grow: 8.5, spin: -7.0 });
+
+    // 2. GIANT ROTATING & SQUEEZING MECHANICAL CRUSHER ARM (ŚCIŚK ZAGŁADY)
+    const armGroup = new THREE.Group();
+    armGroup.position.set(this.playerPos.x, this.playerPos.y + 1.1, this.playerPos.z);
+
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+    const greenMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, metalness: 0.5, roughness: 0.3, emissive: 0x15803d, emissiveIntensity: 0.5 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.1 });
+    const teethMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.7, roughness: 0.2, emissive: 0xeab308, emissiveIntensity: 0.4 });
+
+    // Base Turret
+    const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.3, 16), steelMat);
+    armGroup.add(baseMesh);
+
+    // Boom arm
+    const boomGroup = new THREE.Group();
+    boomGroup.position.set(0, 0.15, 0);
+
+    const boomMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.2, 0.22), greenMat);
+    boomMesh.position.set(0, 0.6, 0.2);
+    boomMesh.rotation.x = 0.4;
+    boomGroup.add(boomMesh);
+
+    // Hydraulic cylinder
+    const cylMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 12), chromeMat);
+    cylMesh.position.set(0, 0.5, 0.05);
+    cylMesh.rotation.x = 0.4;
+    boomGroup.add(cylMesh);
+
+    // Forearm
+    const forearmGroup = new THREE.Group();
+    forearmGroup.position.set(0, 1.1, 0.5);
+
+    const forearmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), steelMat);
+    forearmMesh.position.set(0, 0.4, 0.2);
+    forearmMesh.rotation.x = -0.5;
+    forearmGroup.add(forearmMesh);
+
+    // Squeezing Pincer Jaws
+    const clawBaseGroup = new THREE.Group();
+    clawBaseGroup.position.set(0, 0.8, 0.4);
+
+    const clawHub = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), greenMat);
+    clawBaseGroup.add(clawHub);
+
+    // Left Jaw
+    const leftJaw = new THREE.Group();
+    const leftJawBar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.15), steelMat);
+    leftJawBar.position.set(-0.25, 0.35, 0);
+    leftJawBar.rotation.z = -0.2;
+    leftJaw.add(leftJawBar);
+
+    const leftTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.12), teethMat);
+    leftTeeth.position.set(-0.15, 0.6, 0.08);
+    leftJaw.add(leftTeeth);
+    clawBaseGroup.add(leftJaw);
+
+    // Right Jaw
+    const rightJaw = new THREE.Group();
+    const rightJawBar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.15), steelMat);
+    rightJawBar.position.set(0.25, 0.35, 0);
+    rightJawBar.rotation.z = 0.2;
+    rightJaw.add(rightJawBar);
+
+    const rightTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.12), teethMat);
+    rightTeeth.position.set(0.15, 0.6, 0.08);
+    rightJaw.add(rightTeeth);
+    clawBaseGroup.add(rightJaw);
+
+    forearmGroup.add(clawBaseGroup);
+    boomGroup.add(forearmGroup);
+    armGroup.add(boomGroup);
+
+    armGroup.scale.setScalar(1.6);
+    this.levelRoot.add(armGroup);
+
+    let sparkTimer = 0;
+
+    this.specialEffects.push({
+      mesh: armGroup,
+      life: 0.9,
+      maxLife: 0.9,
+      grow: 0,
+      spin: 0,
+      update: (dt: number, progress: number) => {
+        // High-speed rotation around Y-axis
+        armGroup.rotation.y += dt * 18.0;
+
+        // Dynamic heavy slam arc
+        armGroup.rotation.x = Math.sin(progress * Math.PI) * 0.5;
+
+        // SQUEEZING / PINCHING CLAW ACTION (Obracające się i ściskające ramię):
+        const closeAmount = Math.max(0, Math.sin(progress * Math.PI)); 
+        leftJaw.rotation.z = closeAmount * 0.85;
+        rightJaw.rotation.z = -closeAmount * 0.85;
+
+        // Glowing teeth intensity
+        teethMat.emissiveIntensity = 0.4 + closeAmount * 1.8;
+
+        // Energy sparks burst during peak crush
+        if (progress > 0.2 && progress < 0.8) {
+          sparkTimer += dt;
+          if (sparkTimer > 0.04) {
+            sparkTimer = 0;
+            this.spawnParticleRing(
+              armGroup.position.x + (Math.random() - 0.5) * 0.8,
+              armGroup.position.y + 1.2,
+              armGroup.position.z + (Math.random() - 0.5) * 0.8,
+              0x4ade80
+            );
+          }
+        }
+
+        // Smooth scale fade out near end
+        if (progress > 0.7) {
+          const fade = (1 - progress) / 0.3;
+          armGroup.scale.setScalar(1.6 * fade);
+        }
+      },
+    });
   }
 
   private updateParticles(dt: number) {

@@ -34,16 +34,51 @@ export interface LeaderboardEntry {
   createdAt: string;
 }
 
-export class FirestoreErrorInfo extends Error {
-  constructor(
-    message: string,
-    public operation: 'get' | 'create' | 'update' | 'delete' | 'list',
-    public path: string,
-    public originalError?: unknown
-  ) {
-    super(message);
-    this.name = 'FirestoreErrorInfo';
-  }
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.warn('Firestore Error Handled:', JSON.stringify(errInfo));
+  return errInfo;
 }
 
 let currentUser: User | null = null;
@@ -84,13 +119,16 @@ export async function testFirestoreConnection(): Promise<boolean> {
     await getDocFromServer(probeDoc);
     return true;
   } catch (error: unknown) {
-    // If not found, that's normal for a probe doc, connection was reached
-    const err = error as { code?: string };
+    const err = error as { code?: string; message?: string };
     if (err && (err.code === 'not-found' || err.code === 'permission-denied')) {
       return true;
     }
-    console.info('Firestore boot check:', error);
-    return true;
+    if (err && err.message && err.message.includes('offline')) {
+      console.warn('Firestore offline mode active.');
+    } else {
+      handleFirestoreError(error, OperationType.GET, 'leaderboard/probe-connection');
+    }
+    return false;
   }
 }
 
@@ -99,35 +137,32 @@ export async function testFirestoreConnection(): Promise<boolean> {
  */
 export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): Promise<string> {
   const collectionPath = 'leaderboard';
+  const cleanId = `mf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const payload: LeaderboardEntry = {
+    playerName: (entry.playerName.trim() || 'Pracownik Magazynu').substring(0, 32),
+    hero: entry.hero || 'Marcin',
+    score: Math.max(0, Math.floor(entry.score)),
+    coins: Math.max(0, Math.floor(entry.coins)),
+    timeSeconds: Math.max(0, Math.floor(entry.timeSeconds)),
+    bossDefeated: Boolean(entry.bossDefeated),
+    createdAt: new Date().toISOString(),
+  };
+
+  // Cache locally immediately so result is never lost
   try {
-    // Generate valid id [a-zA-Z0-9_-]{1,64}
-    const cleanId = `mf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const raw = localStorage.getItem('maxfliz_cached_leaderboard');
+    const list: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
+    list.push({ ...payload, id: cleanId });
+    list.sort((a, b) => b.score - a.score);
+    localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
+  } catch {}
+
+  try {
     const docRef = doc(db, collectionPath, cleanId);
-
-    const payload: LeaderboardEntry = {
-      playerName: (entry.playerName.trim() || 'Pracownik Magazynu').substring(0, 32),
-      hero: entry.hero || 'Marcin',
-      score: Math.max(0, Math.floor(entry.score)),
-      coins: Math.max(0, Math.floor(entry.coins)),
-      timeSeconds: Math.max(0, Math.floor(entry.timeSeconds)),
-      bossDefeated: Boolean(entry.bossDefeated),
-      createdAt: new Date().toISOString(),
-    };
-
-    // Cache locally immediately so result is never lost
-    try {
-      const raw = localStorage.getItem('maxfliz_cached_leaderboard');
-      const list: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
-      list.push({ ...payload, id: cleanId });
-      list.sort((a, b) => b.score - a.score);
-      localStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
-    } catch {}
-
     await setDoc(docRef, payload);
     return cleanId;
   } catch (err) {
-    // If setDoc failed, we still have the local cache
-    console.warn('Firestore submit notice:', err);
+    handleFirestoreError(err, OperationType.WRITE, `${collectionPath}/${cleanId}`);
     return `local_${Date.now()}`;
   }
 }
@@ -167,7 +202,7 @@ export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEnt
       return results;
     }
   } catch (err) {
-    console.warn('Leaderboard fetch notice (checking local cache):', err);
+    handleFirestoreError(err, OperationType.LIST, collectionPath);
   }
 
   // Graceful fallback to cached high scores
