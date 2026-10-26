@@ -555,7 +555,74 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.18);
   }
+
+  public playReclamation() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    // Executive stamp drop (low frequency rumble + heavy impact)
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(35, t + 0.4);
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.42);
+
+    // Metallic seal resonance
+    const metallic = this.ctx.createOscillator();
+    const mGain = this.ctx.createGain();
+    metallic.type = 'triangle';
+    metallic.frequency.setValueAtTime(1470, t + 0.05);
+    metallic.frequency.exponentialRampToValueAtTime(735, t + 0.45);
+    mGain.gain.setValueAtTime(0.3, t + 0.05);
+    mGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    metallic.connect(mGain);
+    mGain.connect(this.ctx.destination);
+    metallic.start(t + 0.05);
+    metallic.stop(t + 0.47);
+  }
+
+  public playSciskCrush() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    // Heavy bicep crush impact (punch + shockwave)
+    const sub = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(300, t);
+    sub.frequency.exponentialRampToValueAtTime(30, t + 0.35);
+    subGain.gain.setValueAtTime(0.6, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    sub.connect(subGain);
+    subGain.connect(this.ctx.destination);
+    sub.start(t);
+    sub.stop(t + 0.37);
+
+    // Crackle & crunch
+    const noiseOsc = this.ctx.createOscillator();
+    const noiseGain = this.ctx.createGain();
+    noiseOsc.type = 'square';
+    noiseOsc.frequency.setValueAtTime(450, t);
+    noiseOsc.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+    noiseGain.gain.setValueAtTime(0.35, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    noiseOsc.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+    noiseOsc.start(t);
+    noiseOsc.stop(t + 0.22);
+  }
 }
 
 export const sound = new SoundEngine();
+
 
