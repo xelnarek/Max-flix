@@ -1,0 +1,1693 @@
+import * as THREE from 'three';
+import { CharacterDef } from './types.ts';
+
+// Cached procedural textures
+let floorTexture: THREE.CanvasTexture | null = null;
+let maxFlizSignTexture: THREE.CanvasTexture | null = null;
+let tileBoxTexture: THREE.CanvasTexture | null = null;
+let marbleTextures: Record<string, THREE.CanvasTexture> = {};
+let hazardStripeTexture: THREE.CanvasTexture | null = null;
+let stretchWrapTexture: THREE.CanvasTexture | null = null;
+let wallTexture: THREE.CanvasTexture | null = null;
+
+/**
+ * 1. Ultra High-Res Polished Epoxy Warehouse Floor
+ */
+export function getFloorTexture(): THREE.CanvasTexture {
+  if (floorTexture) return floorTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // Polished dark slate epoxy base
+  ctx.fillStyle = '#1e2430';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Large polished concrete slab joints
+  ctx.strokeStyle = '#141822';
+  ctx.lineWidth = 4;
+  const gridSize = 128;
+  for (let x = 0; x <= 1024; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 1024);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= 1024; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(1024, y);
+    ctx.stroke();
+  }
+
+  // Green Pedestrian Safety Corridor
+  ctx.fillStyle = 'rgba(22, 163, 74, 0.45)';
+  ctx.fillRect(180, 0, 160, 1024);
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(180, 0, 160, 1024);
+
+  // Corridor Floor Stencil Text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 22px "Segoe UI", Roboto, sans-serif';
+  ctx.save();
+  ctx.translate(260, 320);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('ALEJA KOMPLETACJI • MAX-FLIZ', 0, 0);
+  ctx.restore();
+
+  // Forklift Zebra Crossing
+  for (let y = 400; y < 620; y += 40) {
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(180, y, 160, 20);
+  }
+
+  // Realistic tire skid marks
+  ctx.strokeStyle = 'rgba(10, 13, 20, 0.5)';
+  ctx.lineWidth = 8;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    const sx = Math.random() * 800 + 100;
+    const sy = Math.random() * 800 + 100;
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(sx + (Math.random() - 0.5) * 200, sy + (Math.random() - 0.5) * 200, sx + (Math.random() - 0.5) * 350, sy + (Math.random() - 0.5) * 350);
+    ctx.stroke();
+  }
+
+  // Perimeter Hazard Line
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillRect(0, 0, 1024, 20);
+  ctx.fillRect(0, 1004, 1024, 20);
+  ctx.fillRect(0, 0, 20, 1024);
+  ctx.fillRect(1004, 0, 20, 1024);
+
+  floorTexture = new THREE.CanvasTexture(canvas);
+  floorTexture.colorSpace = THREE.SRGBColorSpace;
+  floorTexture.wrapS = THREE.RepeatWrapping;
+  floorTexture.wrapT = THREE.RepeatWrapping;
+  return floorTexture;
+}
+
+/**
+ * 2. Corrugated Industrial Warehouse Wall Texture
+ */
+export function getWallTexture(): THREE.CanvasTexture {
+  if (wallTexture) return wallTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, 512, 256);
+
+  // Ribbed steel cladding panels
+  for (let x = 0; x < 512; x += 16) {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(x, 0, 4, 256);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(x + 4, 0, 4, 256);
+  }
+
+  // Safety sign stencils
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(200, 80, 112, 40);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('BHP MAX-FLIZ', 256, 105);
+
+  wallTexture = new THREE.CanvasTexture(canvas);
+  wallTexture.colorSpace = THREE.SRGBColorSpace;
+  wallTexture.wrapS = THREE.RepeatWrapping;
+  wallTexture.wrapT = THREE.RepeatWrapping;
+  return wallTexture;
+}
+
+/**
+ * 3. Max-Fliz Brand Showroom Signboard
+ */
+export function getMaxFlizLogoTexture(): THREE.CanvasTexture {
+  if (maxFlizSignTexture) return maxFlizSignTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+
+  // Deep luxury sapphire navy
+  const grad = ctx.createLinearGradient(0, 0, 512, 160);
+  grad.addColorStop(0, '#0b1329');
+  grad.addColorStop(1, '#1e3a8a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 160);
+
+  // Gold luxury border
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(6, 6, 500, 148);
+
+  // Subtly bevelled inner border
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(12, 12, 488, 136);
+
+  // Logo Typography
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 54px "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#f59e0b';
+  ctx.shadowBlur = 12;
+  ctx.fillText('MAX - FLIZ', 256, 68);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = '700 20px "Segoe UI", Roboto, sans-serif';
+  ctx.letterSpacing = '5px';
+  ctx.fillText('SALON & CENTRUM LOGISTYCZNE', 256, 106);
+
+  ctx.fillStyle = '#93c5fd';
+  ctx.font = '13px sans-serif';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('GRESY WIELKOFORMATOWE • ARMATURA • DESIGN', 256, 134);
+
+  maxFlizSignTexture = new THREE.CanvasTexture(canvas);
+  maxFlizSignTexture.colorSpace = THREE.SRGBColorSpace;
+  return maxFlizSignTexture;
+}
+
+/**
+ * 4. Realistic Luxury Spanish & Italian Tiles
+ */
+export function getMarbleTexture(type: 'calacatta' | 'nero' | 'wood' | 'gold_mosaic' = 'calacatta'): THREE.CanvasTexture {
+  if (marbleTextures[type]) return marbleTextures[type];
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  if (type === 'calacatta') {
+    // Calacatta Gold
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 512, 512);
+
+    const drawVein = (color: string, width: number, startX: number, startY: number) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      let cx = startX;
+      let cy = startY;
+      for (let i = 0; i < 9; i++) {
+        cx += (Math.random() - 0.42) * 90;
+        cy += Math.random() * 65;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    };
+
+    for (let i = 0; i < 6; i++) {
+      drawVein('rgba(148, 163, 184, 0.45)', 5, Math.random() * 512, 0);
+      drawVein('rgba(217, 119, 6, 0.4)', 3, Math.random() * 512, 0);
+    }
+  } else if (type === 'nero') {
+    // Nero Marquina
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * 512, 0);
+      for (let j = 0; j < 8; j++) {
+        ctx.lineTo(Math.random() * 512, (j + 1) * 64);
+      }
+      ctx.stroke();
+    }
+  } else if (type === 'wood') {
+    // Gres Drewnopodobny
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.strokeStyle = 'rgba(69, 26, 3, 0.35)';
+    ctx.lineWidth = 3;
+    for (let y = 0; y < 512; y += 8) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(512, y + (Math.random() - 0.5) * 6);
+      ctx.stroke();
+    }
+  } else {
+    // Gold Hexagon Mosaic
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.fillStyle = '#fbbf24';
+    const r = 32;
+    for (let x = 0; x < 540; x += r * 1.7) {
+      for (let y = 0; y < 540; y += r * 1.5) {
+        ctx.beginPath();
+        for (let a = 0; a < 6; a++) {
+          const angle = (a * Math.PI) / 3;
+          const px = x + Math.cos(angle) * (r - 4);
+          const py = y + Math.sin(angle) * (r - 4);
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        if ((x + y) % 3 === 0) ctx.fill();
+      }
+    }
+  }
+
+  // Polished tile outer bevel
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, 506, 506);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  marbleTextures[type] = tex;
+  return tex;
+}
+
+/**
+ * 5. Realistic Cardboard Box with Max-Fliz Branding Tape
+ */
+export function getTileBoxTexture(): THREE.CanvasTexture {
+  if (tileBoxTexture) return tileBoxTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#c2925b';
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Corrugation texture lines
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.07)';
+  ctx.lineWidth = 2;
+  for (let y = 0; y < 256; y += 6) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+  }
+
+  // Branded packing tape
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillRect(0, 95, 256, 42);
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('MAX-FLIZ GRES', 128, 124);
+
+  // Fragile symbol
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(16, 155, 84, 75);
+  ctx.fillStyle = '#dc2626';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('UWAGA!', 58, 178);
+  ctx.fillText('SZKŁO / GRES', 58, 198);
+  ctx.fillText('FRAGILE', 58, 218);
+
+  // Barcode
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(135, 165, 105, 55);
+  ctx.fillStyle = '#000000';
+  for (let x = 142; x < 232; x += 3.5) {
+    if (Math.random() > 0.25) {
+      ctx.fillRect(x, 170, Math.random() > 0.5 ? 2.5 : 1.5, 34);
+    }
+  }
+  ctx.font = '9px monospace';
+  ctx.fillText('PL-590-MF-2026', 188, 213);
+
+  tileBoxTexture = new THREE.CanvasTexture(canvas);
+  tileBoxTexture.colorSpace = THREE.SRGBColorSpace;
+  return tileBoxTexture;
+}
+
+export function getHazardStripeTexture(): THREE.CanvasTexture {
+  if (hazardStripeTexture) return hazardStripeTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillRect(0, 0, 256, 64);
+
+  ctx.fillStyle = '#0f172a';
+  for (let x = -64; x < 320; x += 32) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + 20, 0);
+    ctx.lineTo(x - 12, 64);
+    ctx.lineTo(x - 32, 64);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  hazardStripeTexture = new THREE.CanvasTexture(canvas);
+  hazardStripeTexture.colorSpace = THREE.SRGBColorSpace;
+  hazardStripeTexture.wrapS = THREE.RepeatWrapping;
+  hazardStripeTexture.wrapT = THREE.RepeatWrapping;
+  return hazardStripeTexture;
+}
+
+/**
+ * 6. Composite 12+ Part Procedural Character Model
+ */
+export function createCharacterModel(def: CharacterDef): {
+  group: THREE.Group;
+  leftLeg: THREE.Mesh;
+  rightLeg: THREE.Mesh;
+  leftArm: THREE.Mesh;
+  rightArm: THREE.Mesh;
+  head: THREE.Mesh;
+  body: THREE.Mesh;
+  accessory: THREE.Group;
+  shadow: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+  group.name = `character_${def.id}`;
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.55 });
+  const clothesMat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.5 });
+  const vestMat = new THREE.MeshStandardMaterial({ color: def.secondaryColor, roughness: 0.3 });
+  const silverReflectMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2, metalness: 0.6 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+  const bootMat = new THREE.MeshStandardMaterial({ color: 0x3f2c1d, roughness: 0.8 }); // leather work boots
+
+  // 1. Torso Body
+  const bodyGeo = new THREE.BoxGeometry(0.36, 0.46, 0.26);
+  const body = new THREE.Mesh(bodyGeo, clothesMat);
+  body.position.y = 0.54;
+  body.castShadow = true;
+  group.add(body);
+
+  // High-Vis Safety Vest
+  const vestGeo = new THREE.BoxGeometry(0.38, 0.34, 0.28);
+  const vest = new THREE.Mesh(vestGeo, vestMat);
+  vest.position.y = 0.56;
+  group.add(vest);
+
+  // Silver Retro-Reflective Stripes on Vest
+  const stripeH = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.04, 0.29), silverReflectMat);
+  stripeH.position.y = 0.54;
+  const stripeV1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.29), silverReflectMat);
+  stripeV1.position.set(-0.1, 0.56, 0);
+  const stripeV2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.29), silverReflectMat);
+  stripeV2.position.set(0.1, 0.56, 0);
+  group.add(stripeH, stripeV1, stripeV2);
+
+  // 2. Head with Face Details
+  const headGeo = new THREE.BoxGeometry(0.26, 0.28, 0.26);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.y = 0.94;
+  head.castShadow = true;
+  group.add(head);
+
+  // Big expressive eyes
+  const eyeWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyePupil = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+  [-0.07, 0.07].forEach((ex) => {
+    const ew = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.02), eyeWhite);
+    ew.position.set(ex, 0.96, 0.135);
+    const ep = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.025), eyePupil);
+    ep.position.set(ex, 0.96, 0.138);
+    group.add(ew, ep);
+  });
+
+  // Smile / Mouth
+  const smile = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.02, 0.02),
+    new THREE.MeshBasicMaterial({ color: 0x991b1b })
+  );
+  smile.position.set(0, 0.88, 0.135);
+  group.add(smile);
+
+  // Safety Hardhat or Cap
+  if (def.id === 'marcin') {
+    // White Shift Manager Helmet with badge
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.32), helmetMat);
+    helmet.position.y = 1.08;
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.38), helmetMat);
+    brim.position.set(0, 1.03, 0.03);
+    const badge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x2563eb }));
+    badge.position.set(0, 1.10, 0.165);
+    group.add(helmet, brim, badge);
+  } else if (def.id === 'grzesiek') {
+    // Yellow Hardhat with ear defenders
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.25 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.32), helmetMat);
+    helmet.position.y = 1.08;
+    group.add(helmet);
+  } else if (def.id === 'dawid') {
+    // Red Heavy Duty Hardhat
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.25 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.32), helmetMat);
+    helmet.position.y = 1.08;
+    group.add(helmet);
+  } else {
+    // Mateusz Designer Cap backwards
+    const capMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.5 });
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.30), capMat);
+    cap.position.y = 1.06;
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.14), capMat);
+    visor.position.set(0, 1.03, -0.16);
+    group.add(cap, visor);
+  }
+
+  // 3. Legs & Leather Steel-toe Boots
+  const legGeo = new THREE.BoxGeometry(0.13, 0.34, 0.15);
+  const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+  leftLeg.position.set(-0.1, 0.19, 0);
+  leftLeg.castShadow = true;
+
+  const rightLeg = new THREE.Mesh(legGeo, pantsMat);
+  rightLeg.position.set(0.1, 0.19, 0);
+  rightLeg.castShadow = true;
+
+  const bootGeo = new THREE.BoxGeometry(0.14, 0.1, 0.2);
+  const leftBoot = new THREE.Mesh(bootGeo, bootMat);
+  leftBoot.position.set(0, -0.15, 0.02);
+  leftLeg.add(leftBoot);
+
+  const rightBoot = new THREE.Mesh(bootGeo, bootMat);
+  rightBoot.position.set(0, -0.15, 0.02);
+  rightLeg.add(rightBoot);
+
+  group.add(leftLeg, rightLeg);
+
+  // 4. Arms & Hands
+  const armGeo = new THREE.BoxGeometry(0.1, 0.36, 0.11);
+  const leftArm = new THREE.Mesh(armGeo, clothesMat);
+  leftArm.position.set(-0.25, 0.54, 0);
+  leftArm.castShadow = true;
+
+  const rightArm = new THREE.Mesh(armGeo, clothesMat);
+  rightArm.position.set(0.25, 0.54, 0);
+  rightArm.castShadow = true;
+
+  // Hands
+  const handGeo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+  const leftHand = new THREE.Mesh(handGeo, skinMat);
+  leftHand.position.set(0, -0.18, 0);
+  leftArm.add(leftHand);
+
+  const rightHand = new THREE.Mesh(handGeo, skinMat);
+  rightHand.position.set(0, -0.18, 0);
+  rightArm.add(rightHand);
+
+  group.add(leftArm, rightArm);
+
+  // 5. Unique Hero Signature Prop
+  const accessory = new THREE.Group();
+  if (def.id === 'marcin') {
+    // Official WZ delivery clipboard & tablet
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.28, 0.02),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 })
+    );
+    const paper = new THREE.Mesh(
+      new THREE.BoxGeometry(0.17, 0.24, 0.022),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    const goldClip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.04, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 })
+    );
+    goldClip.position.y = 0.12;
+    board.add(paper, goldClip);
+    accessory.add(board);
+    accessory.position.set(0.26, 0.52, 0.16);
+    accessory.rotation.x = 0.45;
+  } else if (def.id === 'grzesiek') {
+    // Pallet jack tiller handle with wheels
+    const tiller = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 0.42),
+      new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7 })
+    );
+    const tBar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0x111827 })
+    );
+    tBar.rotation.z = Math.PI / 2;
+    tBar.position.y = 0.2;
+    tiller.add(tBar);
+    accessory.add(tiller);
+    accessory.position.set(0.28, 0.48, 0.14);
+    accessory.rotation.x = 0.5;
+  } else if (def.id === 'dawid') {
+    // Giant Calacatta gold slab held upright
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(0.38, 0.54, 0.035),
+      new THREE.MeshStandardMaterial({
+        map: getMarbleTexture('calacatta'),
+        roughness: 0.1,
+        metalness: 0.1,
+      })
+    );
+    accessory.add(tile);
+    accessory.position.set(0, 0.58, 0.25);
+    accessory.rotation.x = -0.15;
+  } else {
+    // Mateusz steaming ceramic espresso mug
+    const mug = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.06, 0.14, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
+    );
+    const coffeeInside = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 0.02, 16),
+      new THREE.MeshBasicMaterial({ color: 0x2b1406 })
+    );
+    coffeeInside.position.y = 0.06;
+    mug.add(coffeeInside);
+    accessory.add(mug);
+    accessory.position.set(0.26, 0.5, 0.18);
+  }
+  group.add(accessory);
+
+  // 6. Dynamic Soft Ground Contact Shadow
+  const shadowGeo = new THREE.PlaneGeometry(0.55, 0.55);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+  });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, leftLeg, rightLeg, leftArm, rightArm, head, body, accessory, shadow };
+}
+
+/**
+ * 7. Industrial Forklift (Sztaplarka Zdzicha) with Working Headlights & Blinking Strobe Beacon
+ */
+export function createForkliftModel(color = 0xf59e0b): {
+  group: THREE.Group;
+  beaconLight: THREE.Mesh;
+  wheels: THREE.Mesh[];
+  headlights: THREE.Mesh[];
+} {
+  const group = new THREE.Group();
+  group.name = 'forklift';
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.7 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.95 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+  const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+
+  // Lower chassis
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.45, 0.88), bodyMat);
+  chassis.position.set(0, 0.38, 0);
+  chassis.castShadow = true;
+  group.add(chassis);
+
+  // Counterweight curved back
+  const counterweight = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.86), darkMetal);
+  counterweight.position.set(-0.52, 0.44, 0);
+  counterweight.castShadow = true;
+  group.add(counterweight);
+
+  // Protective Roll-Cage Pillars
+  const pillarGeo = new THREE.BoxGeometry(0.06, 1.0, 0.06);
+  [
+    [-0.3, 1.05, -0.36],
+    [-0.3, 1.05, 0.36],
+    [0.28, 1.05, -0.36],
+    [0.28, 1.05, 0.36],
+  ].forEach(([px, py, pz]) => {
+    const p = new THREE.Mesh(pillarGeo, darkMetal);
+    p.position.set(px, py, pz);
+    group.add(p);
+  });
+
+  // Roll-Cage Roof with Grid Protection
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.06, 0.84), darkMetal);
+  roof.position.set(0, 1.55, 0);
+  group.add(roof);
+
+  // Blinking Amber Safety Strobe Beacon
+  const beaconLight = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.14, 16), beaconMat);
+  beaconLight.position.set(0, 1.65, 0);
+  group.add(beaconLight);
+
+  // Mast Rails & Chrome Hydraulic Lift Pistons
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.6, 0.65), darkMetal);
+  mast.position.set(0.72, 0.95, 0);
+  group.add(mast);
+
+  const pistonL = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4), chromeMat);
+  pistonL.position.set(0.72, 0.95, -0.22);
+  const pistonR = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4), chromeMat);
+  pistonR.position.set(0.72, 0.95, 0.22);
+  group.add(pistonL, pistonR);
+
+  // Steel Forks
+  const fork1 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.05, 0.12), darkMetal);
+  fork1.position.set(1.12, 0.16, -0.2);
+  const fork2 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.05, 0.12), darkMetal);
+  fork2.position.set(1.12, 0.16, 0.2);
+  group.add(fork1, fork2);
+
+  // Cargo Pallet on the forks!
+  const cargoPallet = createTilePallet(1);
+  cargoPallet.scale.set(0.7, 0.7, 0.7);
+  cargoPallet.position.set(1.1, 0.18, 0);
+  group.add(cargoPallet);
+
+  // Working Halogen Headlights
+  const headlights: THREE.Mesh[] = [];
+  [-0.28, 0.28].forEach((hz) => {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.1), lightMat);
+    hl.position.set(0.68, 0.85, hz);
+    group.add(hl);
+    headlights.push(hl);
+
+    // Projected ground light spot
+    const spot = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.6, 0.8),
+      new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false,
+      })
+    );
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(1.8, 0.02, hz);
+    group.add(spot);
+  });
+
+  // Heavy Industrial Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.14, 24);
+  wheelGeo.rotateX(Math.PI / 2);
+  const wheels: THREE.Mesh[] = [];
+  [
+    [-0.38, 0.2, 0.46],
+    [-0.38, 0.2, -0.46],
+    [0.38, 0.2, 0.46],
+    [0.38, 0.2, -0.46],
+  ].forEach(([wx, wy, wz]) => {
+    const w = new THREE.Mesh(wheelGeo, wheelMat);
+    w.position.set(wx, wy, wz);
+    w.castShadow = true;
+    wheels.push(w);
+    group.add(w);
+  });
+
+  return { group, beaconLight, wheels, headlights };
+}
+
+/**
+ * 8. Shrink-Wrapped Pallet with Tile Boxes
+ */
+export function createTilePallet(tier = 1, tileType: 'calacatta' | 'nero' | 'wood' | 'gold_mosaic' = 'calacatta'): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'tile_pallet';
+
+  // Wooden EUR Pallet slats
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x92653a, roughness: 0.85 });
+  const palletBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.14, 1.0), woodMat);
+  palletBase.position.y = 0.07;
+  palletBase.castShadow = true;
+  group.add(palletBase);
+
+  // Stacked Tile Boxes
+  const boxMat = new THREE.MeshStandardMaterial({ map: getTileBoxTexture(), roughness: 0.6 });
+  const boxCount = tier === 1 ? 4 : 8;
+
+  for (let i = 0; i < boxCount; i++) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.34, 0.42), boxMat);
+    const col = i % 2;
+    const row = Math.floor((i % 4) / 2);
+    const layer = Math.floor(i / 4);
+    box.position.set(
+      col === 0 ? -0.27 : 0.27,
+      0.14 + 0.17 + layer * 0.35,
+      row === 0 ? -0.22 : 0.22
+    );
+    box.castShadow = true;
+    box.receiveShadow = true;
+    group.add(box);
+  }
+
+  // Display Tile on top
+  const topTile = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.04, 0.7),
+    new THREE.MeshStandardMaterial({ map: getMarbleTexture(tileType), roughness: 0.15, metalness: 0.1 })
+  );
+  topTile.position.y = 0.14 + (tier === 1 ? 0.36 : 0.72);
+  group.add(topTile);
+
+  // Semi-transparent shrink-wrap stretch film effect
+  const wrapH = tier === 1 ? 0.42 : 0.78;
+  const wrap = new THREE.Mesh(
+    new THREE.BoxGeometry(1.05, wrapH, 0.9),
+    new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.18,
+      roughness: 0.1,
+      metalness: 0.1,
+    })
+  );
+  wrap.position.y = 0.14 + wrapH / 2;
+  group.add(wrap);
+
+  return group;
+}
+
+/**
+ * 9. Luxury Freestanding Bathtub (Trampoline & Launchpad!)
+ */
+export function createBathtubModel(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'bathtub_trampoline';
+
+  // White freestanding acrylic tub
+  const tubMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.08,
+    metalness: 0.05,
+  });
+
+  const tubOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.58, 0.62, 32), tubMat);
+  tubOuter.scale.set(1.4, 1, 0.82);
+  tubOuter.position.y = 0.31;
+  tubOuter.castShadow = true;
+  group.add(tubOuter);
+
+  // Shimmering water pool
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x06b6d4,
+    roughness: 0.05,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.85,
+  });
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 32), waterMat);
+  water.scale.set(1.36, 1, 0.78);
+  water.position.y = 0.54;
+  group.add(water);
+
+  // Luxury Gold Floor-Standing Mixer Faucet
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.15, metalness: 0.95 });
+  const faucetPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 16), goldMat);
+  faucetPipe.position.set(0.94, 0.45, 0);
+  const faucetArch = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.03, 8, 16, Math.PI), goldMat);
+  faucetArch.position.set(0.82, 0.9, 0);
+  faucetArch.rotation.z = Math.PI / 2;
+  group.add(faucetPipe, faucetArch);
+
+  // Glowing spring launch ring decal
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.2, 0.3, 32),
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.57;
+  group.add(ring);
+
+  return group;
+}
+
+/**
+ * 10. High-Bay Industrial Warehouse Rack (Regał Wysokiego Składowania)
+ */
+export function createWarehouseRack(width = 4.0, height = 3.8, depth = 1.2): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'warehouse_rack';
+
+  const blueMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.4, metalness: 0.45 });
+  const orangeBeamMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.35, metalness: 0.4 });
+  const meshDeckMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6, metalness: 0.65 });
+
+  const halfW = width / 2;
+  const halfD = depth / 2;
+
+  // 4 Upright slotted columns
+  const postGeo = new THREE.BoxGeometry(0.12, height, 0.12);
+  [
+    [-halfW, height / 2, -halfD],
+    [-halfW, height / 2, halfD],
+    [halfW, height / 2, -halfD],
+    [halfW, height / 2, halfD],
+  ].forEach(([x, y, z]) => {
+    const post = new THREE.Mesh(postGeo, blueMat);
+    post.position.set(x, y, z);
+    post.castShadow = true;
+    group.add(post);
+  });
+
+  // Crossbeams & Decking
+  const levels = [1.2, 2.5, 3.7];
+  levels.forEach((lvlY) => {
+    const beamGeo = new THREE.BoxGeometry(width, 0.14, 0.08);
+    const bFront = new THREE.Mesh(beamGeo, orangeBeamMat);
+    bFront.position.set(0, lvlY, halfD);
+    const bBack = new THREE.Mesh(beamGeo, orangeBeamMat);
+    bBack.position.set(0, lvlY, -halfD);
+    group.add(bFront, bBack);
+
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(width - 0.08, 0.05, depth - 0.08), meshDeckMat);
+    deck.position.set(0, lvlY - 0.02, 0);
+    deck.receiveShadow = true;
+    group.add(deck);
+
+    // Populate shelves with varied pallets of luxury goods!
+    if (lvlY < 3.0) {
+      const p1 = createTilePallet(1, lvlY === 1.2 ? 'calacatta' : 'nero');
+      p1.scale.set(0.75, 0.75, 0.75);
+      p1.position.set(-width / 3.8, lvlY, 0);
+      const p2 = createTilePallet(1, lvlY === 1.2 ? 'wood' : 'gold_mosaic');
+      p2.scale.set(0.75, 0.75, 0.75);
+      p2.position.set(width / 3.8, lvlY, 0);
+      group.add(p1, p2);
+    }
+  });
+
+  return group;
+}
+
+/**
+ * 11. Collectible Golden Grout (Złota Fuga)
+ */
+export function createGroutCollectible(): THREE.Group {
+  const group = new THREE.Group();
+
+  const geo = new THREE.OctahedronGeometry(0.24, 0);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xfbbf24,
+    roughness: 0.1,
+    metalness: 0.95,
+    emissive: 0xd97706,
+    emissiveIntensity: 0.4,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  group.add(mesh);
+
+  // Sparkling orbital ring
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.32, 0.02, 8, 24),
+    new THREE.MeshBasicMaterial({ color: 0xfef08a })
+  );
+  ring.rotation.x = Math.PI / 4;
+  group.add(ring);
+
+  return group;
+}
+
+/**
+ * 12. Max-Fliz VIP Delivery Van (Sprinter Style Finish Goal)
+ */
+export function createDeliveryVan(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'delivery_truck';
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.3 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+  const signMat = new THREE.MeshStandardMaterial({ map: getMaxFlizLogoTexture(), roughness: 0.35 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.9 });
+
+  // Main Cargo Box
+  const box = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 1.5), signMat);
+  box.position.set(-0.2, 1.15, 0);
+  box.castShadow = true;
+  group.add(box);
+
+  // Cabin
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.2, 1.4), bodyMat);
+  cab.position.set(1.55, 1.0, 0);
+  cab.castShadow = true;
+  group.add(cab);
+
+  // Windshield & Side Windows
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1, transparent: true, opacity: 0.7 });
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 1.25), glassMat);
+  windshield.position.set(1.92, 1.2, 0);
+  group.add(windshield);
+
+  // Chrome Grille & Headlights
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.8), chromeMat);
+  grille.position.set(2.12, 0.75, 0);
+  group.add(grille);
+
+  [-0.52, 0.52].forEach((hz) => {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.18), new THREE.MeshBasicMaterial({ color: 0xfffbeb }));
+    hl.position.set(2.11, 0.85, hz);
+    group.add(hl);
+  });
+
+  // Loading Rear Metal Ramp
+  const ramp = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.08, 1.4),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7, roughness: 0.4 })
+  );
+  ramp.position.set(-1.8, 0.3, 0);
+  ramp.rotation.z = 0.28;
+  group.add(ramp);
+
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.22, 24);
+  wheelGeo.rotateX(Math.PI / 2);
+  [
+    [-0.9, 0.3, 0.8],
+    [-0.9, 0.3, -0.8],
+    [0.4, 0.3, 0.8],
+    [0.4, 0.3, -0.8],
+    [1.55, 0.3, 0.8],
+    [1.55, 0.3, -0.8],
+  ].forEach(([wx, wy, wz]) => {
+    const w = new THREE.Mesh(wheelGeo, wheelMat);
+    w.position.set(wx, wy, wz);
+    w.castShadow = true;
+    group.add(w);
+  });
+
+  return group;
+}
+
+/**
+ * 13. Overhead Warehouse High-Bay LED Lamp with Downlight Beam
+ */
+export function createHighBayLamp(): THREE.Group {
+  const group = new THREE.Group();
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+  const emissiveLed = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+
+  // UFO Heatsink fixture
+  const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 0.2, 24), metalMat);
+  const led = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.02, 24), emissiveLed);
+  led.position.y = -0.1;
+  fixture.add(led);
+  group.add(fixture);
+
+  // Hanging steel chain
+  const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 3.0), metalMat);
+  chain.position.y = 1.6;
+  group.add(chain);
+
+  // Soft translucent floor light pool
+  const pool = new THREE.Mesh(
+    new THREE.CircleGeometry(3.5, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfffbeb, transparent: true, opacity: 0.12, depthWrite: false })
+  );
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = -5.8;
+  group.add(pool);
+
+  return group;
+}
+
+/**
+ * 14. Angry Customer with Invoice (Wściekły Klient z Fakturą / Reklamacją)
+ */
+export function createCustomerEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  invoiceMesh: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+  group.name = 'enemy_customer';
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1a4, roughness: 0.6 });
+  const jacketMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.45 }); // Red angry puffer jacket
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
+
+  // Torso
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.44, 0.24), jacketMat);
+  body.position.y = 0.52;
+  body.castShadow = true;
+  group.add(body);
+
+  // Head with Angry Expression
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.24), skinMat);
+  head.position.y = 0.9;
+  head.castShadow = true;
+  group.add(head);
+
+  // Hair
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.26), hairMat);
+  hair.position.y = 1.04;
+  group.add(hair);
+
+  // Angry Slanted Eyebrows & Eyes
+  const browMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const bL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.02), browMat);
+  bL.position.set(-0.06, 0.96, 0.13);
+  bL.rotation.z = -0.3;
+  const bR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.02), browMat);
+  bR.position.set(0.06, 0.96, 0.13);
+  bR.rotation.z = 0.3;
+
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const eL = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.02), eyeMat);
+  eL.position.set(-0.06, 0.92, 0.13);
+  const eR = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.02), eyeMat);
+  eR.position.set(0.06, 0.92, 0.13);
+
+  // Angry open shouting mouth
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x7f1d1d }));
+  mouth.position.set(0, 0.84, 0.13);
+  group.add(bL, bR, eL, eR, mouth);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.12, 0.32, 0.14);
+  const legL = new THREE.Mesh(legGeo, pantsMat);
+  legL.position.set(-0.09, 0.18, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, pantsMat);
+  legR.position.set(0.09, 0.18, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.BoxGeometry(0.09, 0.34, 0.1);
+  const armL = new THREE.Mesh(armGeo, jacketMat);
+  armL.position.set(-0.23, 0.52, 0);
+  armL.castShadow = true;
+  const armR = new THREE.Mesh(armGeo, jacketMat);
+  armR.position.set(0.23, 0.52, 0);
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Hand waving a crumpled paper INVOICE / REKLAMACJA
+  const paperMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+  const invoiceMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.01), paperMat);
+  invoiceMesh.position.set(0, -0.16, 0.12);
+  invoiceMesh.rotation.x = 0.6;
+  armR.add(invoiceMesh);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5, 0.5),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, invoiceMesh, head };
+}
+
+/**
+ * 15. Former Showroom Manager Walczak Boss (Były Kierownik Salonu Walczak)
+ */
+export function createWalczakBossModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  megaphone: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+  group.name = 'boss_walczak';
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfed7aa, roughness: 0.6 });
+  const suitMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4 }); // Grey executive business suit
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3 }); // Red power tie
+  const shoeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
+
+  // Suit Torso
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.28), suitMat);
+  body.position.y = 0.58;
+  body.castShadow = true;
+  group.add(body);
+
+  // White shirt collar & red tie
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.02), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  shirt.position.set(0, 0.72, 0.145);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.025), tieMat);
+  tie.position.set(0, 0.58, 0.148);
+  group.add(shirt, tie);
+
+  // Head with Glasses & Stern Look
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.28), skinMat);
+  head.position.y = 1.02;
+  head.castShadow = true;
+  group.add(head);
+
+  // Silver Hair combed back
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.3), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
+  hair.position.y = 1.18;
+  group.add(hair);
+
+  // Black frame Glasses
+  const glassMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+  const rimL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.02), glassMat);
+  rimL.position.set(-0.07, 1.05, 0.145);
+  const rimR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.02), glassMat);
+  rimR.position.set(0.07, 1.05, 0.145);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.02), glassMat);
+  bridge.position.set(0, 1.05, 0.145);
+  group.add(rimL, rimR, bridge);
+
+  // Legs & Polished Oxford Shoes
+  const legGeo = new THREE.BoxGeometry(0.14, 0.36, 0.16);
+  const legL = new THREE.Mesh(legGeo, suitMat);
+  legL.position.set(-0.11, 0.2, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, suitMat);
+  legR.position.set(0.11, 0.2, 0);
+  legR.castShadow = true;
+
+  const shoeGeo = new THREE.BoxGeometry(0.15, 0.1, 0.22);
+  const shoeL = new THREE.Mesh(shoeGeo, shoeMat);
+  shoeL.position.set(0, -0.16, 0.03);
+  legL.add(shoeL);
+  const shoeR = new THREE.Mesh(shoeGeo, shoeMat);
+  shoeR.position.set(0, -0.16, 0.03);
+  legR.add(shoeR);
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.BoxGeometry(0.11, 0.4, 0.12);
+  const armL = new THREE.Mesh(armGeo, suitMat);
+  armL.position.set(-0.28, 0.58, 0);
+  armL.castShadow = true;
+  const armR = new THREE.Mesh(armGeo, suitMat);
+  armR.position.set(0.28, 0.58, 0);
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Right Hand Megaphone ("SZCZEKACZKA WALCZAKA")
+  const megaMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.6 });
+  const megaphone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.28, 16), megaMat);
+  megaphone.rotation.x = -Math.PI / 2;
+  megaphone.position.set(0, -0.2, 0.16);
+  armR.add(megaphone);
+
+  // Left Hand Giant Golden Clipboard with "AUDYT WALCZAKA"
+  const clipMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.5 });
+  const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.34, 0.02), clipMat);
+  const auditPaper = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.3, 0.022),
+    new THREE.MeshBasicMaterial({ color: 0xfef08a }) // Yellow audit sheet
+  );
+  clipboard.add(auditPaper);
+  clipboard.position.set(0, -0.16, 0.14);
+  clipboard.rotation.x = 0.4;
+  armL.add(clipboard);
+
+  // Boss Crown / Badge on top
+  const crown = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.04, 0.2),
+    new THREE.MeshStandardMaterial({ color: 0xdc2626, emissive: 0x7f1d1d })
+  );
+  crown.position.y = 1.25;
+  group.add(crown);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 0.7),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, megaphone, head };
+}
+
+/**
+ * 16. Flying Penalty Invoice Projectile ("KARA UMOWNA WALCZAKA")
+ */
+export function createPenaltyNoticeProjectile(): THREE.Mesh {
+  const geo = new THREE.BoxGeometry(0.3, 0.4, 0.02);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xef4444,
+    emissive: 0x991b1b,
+    emissiveIntensity: 0.6,
+    roughness: 0.4,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+/**
+ * 17. NEW ENEMY: Architekt Wnętrz z Próbnikami ("Zbyt mało beżowy ten gres!")
+ */
+export function createArchitectEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+  swatches: THREE.Group;
+} {
+  const group = new THREE.Group();
+
+  // Burgundy / Charcoal Designer Turtleneck & Slim Trousers
+  const turtleneckMat = new THREE.MeshStandardMaterial({ color: 0x581c87, roughness: 0.8 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const glassesMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1 });
+  const scarfMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 });
+
+  // Body
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.46, 12), turtleneckMat);
+  body.position.y = 0.58;
+  body.castShadow = true;
+  group.add(body);
+
+  // Scarf
+  const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.05, 8, 16), scarfMat);
+  scarf.position.y = 0.82;
+  scarf.rotation.x = Math.PI / 2;
+  group.add(scarf);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.96;
+  head.castShadow = true;
+  group.add(head);
+
+  // Designer Spectacles (Thick round black frames)
+  const leftGlass = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.009, 8, 16), glassesMat);
+  leftGlass.position.set(-0.05, 0.97, 0.12);
+  const rightGlass = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.009, 8, 16), glassesMat);
+  rightGlass.position.set(0.05, 0.97, 0.12);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.008, 0.01), glassesMat);
+  bridge.position.set(0, 0.97, 0.13);
+  group.add(leftGlass, rightGlass, bridge);
+
+  // Beret / Stylish Hair
+  const hair = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.17, 0.06, 12), new THREE.MeshStandardMaterial({ color: 0x27272a }));
+  hair.position.y = 1.08;
+  hair.rotation.z = 0.15;
+  group.add(hair);
+
+  // Legs
+  const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.4, 8);
+  const legL = new THREE.Mesh(legGeo, pantsMat);
+  legL.position.set(-0.1, 0.2, 0);
+  legL.castShadow = true;
+
+  const legR = new THREE.Mesh(legGeo, pantsMat);
+  legR.position.set(0.1, 0.2, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.05, 0.045, 0.38, 8);
+  const armL = new THREE.Mesh(armGeo, turtleneckMat);
+  armL.position.set(-0.25, 0.65, 0);
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, turtleneckMat);
+  armR.position.set(0.25, 0.65, 0);
+  armR.castShadow = true;
+
+  // Swatches Fan in Right Hand
+  const swatches = new THREE.Group();
+  const swatchColors = [0xfef08a, 0xfde047, 0xd4d4d8, 0x78716c, 0x0284c7];
+  swatchColors.forEach((col, idx) => {
+    const sMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.18, 0.006),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.3 })
+    );
+    sMesh.rotation.z = (idx - 2) * 0.28;
+    sMesh.position.set((idx - 2) * 0.02, 0.08, idx * 0.008);
+    swatches.add(sMesh);
+  });
+  swatches.position.set(0, -0.18, 0.12);
+  swatches.rotation.x = 0.5;
+  armR.add(swatches);
+
+  group.add(armL, armR);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.6, 0.6),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head, swatches };
+}
+
+/**
+ * 18. NEW ENEMY: Inspektor BHP z Notatnikiem i Gwizdkiem
+ */
+export function createInspectorEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+  whistle: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const vestMat = new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0x7c2d12, emissiveIntensity: 0.3, roughness: 0.5 });
+  const silverTapeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.8, roughness: 0.2 });
+  const darkPantsMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const helmetMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.3, metalness: 0.1 });
+
+  // Torso with Safety Vest
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.22), vestMat);
+  body.position.y = 0.62;
+  body.castShadow = true;
+
+  // Reflective Silver Strips
+  const tape1 = new THREE.Mesh(new THREE.BoxGeometry(0.385, 0.05, 0.225), silverTapeMat);
+  tape1.position.y = 0.04;
+  const tape2 = new THREE.Mesh(new THREE.BoxGeometry(0.385, 0.05, 0.225), silverTapeMat);
+  tape2.position.y = -0.12;
+  body.add(tape1, tape2);
+  group.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.98;
+  head.castShadow = true;
+  group.add(head);
+
+  // Hardhat (BHP Yellow Helmet)
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.165, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), helmetMat);
+  helmet.position.y = 0.98;
+  const helmetBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 16), helmetMat);
+  helmetBrim.position.y = 0.98;
+  group.add(helmet, helmetBrim);
+
+  // Whistle around neck
+  const whistleMat = new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.9, roughness: 0.2 });
+  const whistle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.07, 8), whistleMat);
+  whistle.rotation.x = Math.PI / 2;
+  whistle.position.set(0, 0.82, 0.14);
+  group.add(whistle);
+
+  // Legs (Dark Navy work pants with reinforced knees)
+  const legGeo = new THREE.CylinderGeometry(0.065, 0.055, 0.42, 8);
+  const legL = new THREE.Mesh(legGeo, darkPantsMat);
+  legL.position.set(-0.11, 0.21, 0);
+  legL.castShadow = true;
+
+  const legR = new THREE.Mesh(legGeo, darkPantsMat);
+  legR.position.set(0.11, 0.21, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.4, 8);
+  const armL = new THREE.Mesh(armGeo, vestMat);
+  armL.position.set(-0.26, 0.68, 0);
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, vestMat);
+  armR.position.set(0.26, 0.68, 0);
+  armR.castShadow = true;
+
+  // Left hand clipboard
+  const clipboard = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.28, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 })
+  );
+  const checklist = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.24, 0.022),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  clipboard.add(checklist);
+  clipboard.position.set(0, -0.16, 0.12);
+  clipboard.rotation.x = 0.4;
+  armL.add(clipboard);
+
+  group.add(armL, armR);
+
+  // Contact shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.65, 0.65),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head, whistle };
+}
+
+/**
+ * 19. NEW ENEMY: Autonomiczny Wózek AGV (Automated Guided Vehicle)
+ */
+export function createAgvRobotModel(): {
+  group: THREE.Group;
+  lidar: THREE.Mesh;
+  beacon: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const chassisMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.3 });
+  const bumperMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9 });
+  const porcelainMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 });
+
+  // Low heavy chassis with rounded box
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.7), chassisMat);
+  base.position.y = 0.16;
+  base.castShadow = true;
+  group.add(base);
+
+  // Hazard striped bumper
+  const bumperF = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.06, 0.04), bumperMat);
+  bumperF.position.set(0, 0.14, 0.36);
+  const bumperB = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.06, 0.04), bumperMat);
+  bumperB.position.set(0, 0.14, -0.36);
+  group.add(bumperF, bumperB);
+
+  // 4 Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.06, 16);
+  wheelGeo.rotateZ(Math.PI / 2);
+  [-0.42, 0.42].forEach((x) => {
+    [-0.24, 0.24].forEach((z) => {
+      const wheel = new THREE.Mesh(wheelGeo, rubberMat);
+      wheel.position.set(x, 0.08, z);
+      group.add(wheel);
+    });
+  });
+
+  // 360 Lidar scanner
+  const lidar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, 0.08, 16),
+    new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.2 })
+  );
+  lidar.position.set(0.3, 0.31, 0.22);
+  group.add(lidar);
+
+  // Amber flashing beacon
+  const beacon = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.06, 0.1, 12),
+    new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.8 })
+  );
+  beacon.position.set(-0.32, 0.32, -0.22);
+  group.add(beacon);
+
+  // Cargo: Stack of Luxury Ceramic Sinks
+  const sinkBase = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.14, 16), porcelainMat);
+  sinkBase.position.set(0, 0.34, 0);
+  sinkBase.castShadow = true;
+
+  const sinkTop = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.12, 16), porcelainMat);
+  sinkTop.position.set(0, 0.46, 0);
+  sinkTop.castShadow = true;
+  group.add(sinkBase, sinkTop);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.1, 0.9),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, lidar, beacon };
+}
+
+/**
+ * 20. NEW COLLECTIBLE: Podwójne Espresso Max-Fliz (Restores HP + Speed)
+ */
+export function createEspressoCollectible(): THREE.Group {
+  const group = new THREE.Group();
+
+  const porcelain = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.15 });
+  const coffee = new THREE.MeshStandardMaterial({ color: 0x3e1d09, roughness: 0.2 });
+
+  // Saucer
+  const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.03, 20), porcelain);
+  saucer.position.y = 0.02;
+  const saucerRim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.008, 8, 20), gold);
+  saucerRim.rotation.x = Math.PI / 2;
+  saucerRim.position.y = 0.035;
+
+  // Cup
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.15, 20), porcelain);
+  cup.position.y = 0.1;
+  const cupGoldRim = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.008, 8, 20), gold);
+  cupGoldRim.rotation.x = Math.PI / 2;
+  cupGoldRim.position.y = 0.175;
+
+  // Handle
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.015, 8, 16, Math.PI * 1.3), porcelain);
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(0.13, 0.1, 0);
+
+  // Coffee Crema
+  const crema = new THREE.Mesh(new THREE.CircleGeometry(0.11, 20), coffee);
+  crema.rotation.x = -Math.PI / 2;
+  crema.position.y = 0.165;
+
+  // Floating Steam Helix
+  const steamGeo = new THREE.TorusGeometry(0.06, 0.012, 6, 12, Math.PI * 1.5);
+  const steamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+  const steam = new THREE.Mesh(steamGeo, steamMat);
+  steam.rotation.x = Math.PI / 2;
+  steam.position.y = 0.26;
+
+  group.add(saucer, saucerRim, cup, cupGoldRim, handle, crema, steam);
+  group.scale.setScalar(1.2);
+  return group;
+}
+
+/**
+ * 21. NEW COLLECTIBLE: Magnetyczny Pas Narzędziowy (Order Magnet)
+ */
+export function createMagnetCollectible(): THREE.Group {
+  const group = new THREE.Group();
+
+  const redMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.4, roughness: 0.3 });
+  const silverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.1 });
+
+  // Horseshoe curved body
+  const body = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.05, 12, 24, Math.PI), redMat);
+  body.rotation.z = Math.PI;
+  body.position.y = 0.18;
+
+  // Two silver poles
+  const poleL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.1, 16), silverMat);
+  poleL.position.set(-0.18, 0.13, 0);
+  const poleR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.1, 16), silverMat);
+  poleR.position.set(0.18, 0.13, 0);
+
+  // Glow ring
+  const glowRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.24, 0.01, 8, 24),
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7 })
+  );
+  glowRing.position.y = 0.18;
+
+  group.add(body, poleL, poleR, glowRing);
+  group.scale.setScalar(1.1);
+  return group;
+}
+
+/**
+ * 22. NEW COLLECTIBLE: Złoty Przecinak do Płytek (Tile Cutter)
+ */
+export function createGoldenCutterCollectible(): THREE.Group {
+  const group = new THREE.Group();
+
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.2 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.95, roughness: 0.1 });
+
+  // Sturdy base plate
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.18), goldMat);
+  base.position.y = 0.02;
+
+  // Dual guide bars
+  const barGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.48, 12);
+  barGeo.rotateZ(Math.PI / 2);
+  const bar1 = new THREE.Mesh(barGeo, chromeMat);
+  bar1.position.set(0, 0.1, 0.04);
+  const bar2 = new THREE.Mesh(barGeo, chromeMat);
+  bar2.position.set(0, 0.1, -0.04);
+
+  // Lever Handle
+  const lever = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.015, 0.22, 12),
+    new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 })
+  );
+  lever.position.set(0, 0.18, 0);
+  lever.rotation.z = -0.4;
+
+  group.add(base, bar1, bar2, lever);
+  group.scale.setScalar(1.1);
+  return group;
+}
+
+/**
+ * 23. NEW COLLECTIBLE: Włoski Marmur Carrara Gold
+ */
+export function createCarraraCollectible(): THREE.Group {
+  const group = new THREE.Group();
+
+  const marbleMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    roughness: 0.15,
+    metalness: 0.1,
+  });
+
+  // Slab
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.04), marbleMat);
+  slab.castShadow = true;
+
+  // Gold Bevelled Edge / Frame
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.15 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.038), frameMat);
+
+  // Certified Emblem
+  const emblem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, 0.045, 16),
+    new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.8, roughness: 0.2 })
+  );
+  emblem.rotation.x = Math.PI / 2;
+
+  group.add(frame, slab, emblem);
+  return group;
+}
+
+/**
+ * 24. Volumetric Light Cone for High Bay Lamps
+ */
+export function createVolumetricLightBeam(): THREE.Mesh {
+  const geo = new THREE.ConeGeometry(3.5, 8, 16, 1, true);
+  geo.translate(0, -4, 0);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xfffbeb,
+    transparent: true,
+    opacity: 0.06,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 5;
+  return mesh;
+}
+
+

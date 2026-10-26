@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Max-Fliz Magazyn Showdown 3D</title>
+    <meta name="description" content="Trójwymiarowa platformówka izometryczna w szalonym magazynie firmy Max-Fliz. Pokieruj Marcinem, Grześkiem, Dawidem lub Mateuszem, omijaj wózki widłowe i skacz po paletach z luksusowym gresem!" />
+    <meta property="og:title" content="Max-Fliz Magazyn Showdown 3D" />
+    <meta property="og:description" content="Trójwymiarowa platformówka izometryczna w szalonym magazynie firmy Max-Fliz. Pokieruj Marcinem, Grześkiem, Dawidem lub Mateuszem, omijaj wózki widłowe i skacz po paletach z luksusowym gresem!" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <!-- 3D Canvas Mount Container -->
+    <div id="game-canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div id="game-shell">
+
+      <!-- TOP IN-GAME HUD -->
+      <div id="hud-top" class="hud-layer hidden">
+        <!-- Hero Status Cluster (Top-Left) -->
+        <div class="hud-cluster top-left">
+          <div class="hero-badge">
+            <div id="hero-avatar" class="hero-avatar">👷‍♂️</div>
+            <div class="hero-info">
+              <div class="hero-name-row">
+                <span id="hud-hero-name" class="hero-name">Marcin</span>
+                <span id="hud-hero-role" class="hero-role">Kierownik</span>
+              </div>
+              <div id="hud-hp-row" class="hp-row" title="Punkty BHP / Kawa">
+                <span class="hp-mug">☕</span>
+                <span class="hp-mug">☕</span>
+                <span class="hp-mug">☕</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Perks Badges (Speed, Shield, Magnet, Double Jump) -->
+          <div id="hud-perks-row" class="hud-perks-row">
+            <div id="perk-badge-shield" class="perk-badge perk-shield hidden" title="Atestowany Kask BHP (Tarcza)">⛑️ TARCZA</div>
+            <div id="perk-badge-jump" class="perk-badge perk-jump hidden" title="Podwójny Skok">👟 2x SKOK <span id="perk-jump-timer" class="perk-timer"></span></div>
+            <div id="perk-badge-magnet" class="perk-badge perk-magnet hidden" title="Magnes Zamówień">🧲 MAGNES <span id="perk-magnet-timer" class="perk-timer"></span></div>
+            <div id="perk-badge-speed" class="perk-badge perk-speed hidden" title="Podwójne Espresso (Sprint)">☕ SPRINT <span id="perk-speed-timer" class="perk-timer"></span></div>
+          </div>
+
+          <!-- Dynamic Speech Bubble -->
+          <div id="speech-bubble" class="speech-bubble hidden">
+            <span id="speech-bubble-text">Gdzie jest podpis na dokumencie WZ?!</span>
+          </div>
+
+          <!-- Boss Health Bar (When Walczak is active) -->
+          <div id="boss-hud-bar" class="boss-hud-bar hidden">
+            <div class="boss-label-row">
+              <span id="boss-name" class="boss-name">👔 Były Kierownik Walczak</span>
+              <span id="boss-hp-text" class="boss-hp-text">3 / 3</span>
+            </div>
+            <div class="boss-hp-track">
+              <div id="boss-hp-fill" class="boss-hp-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mission Progress Cluster & Quick Controls (Top-Right) -->
+        <div class="hud-cluster top-right">
+          <div class="hud-top-stats-row">
+            <div class="stat-pill">
+              <span class="stat-icon">🟡</span>
+              <span class="stat-label">Fugi</span>
+              <span id="hud-score" class="stat-value tabular-nums">0</span>
+            </div>
+            <div class="stat-pill vip-pill">
+              <span class="stat-icon">📦</span>
+              <span class="stat-label">VIP</span>
+              <span id="hud-vip" class="stat-value tabular-nums">0/3</span>
+            </div>
+            <div class="stat-pill timer-pill">
+              <span class="stat-icon">⏱️</span>
+              <span id="hud-timer" class="stat-value tabular-nums">0:00</span>
+            </div>
+          </div>
+          <div class="hud-top-quick-controls">
+            <button id="btn-top-camera" class="top-icon-btn" title="Kamera">📐</button>
+            <button id="btn-top-sound" class="top-icon-btn" title="Dźwięk"><span id="top-sound-icon">🔊</span></button>
+            <button id="btn-top-pause" class="top-icon-btn pause-top-btn" title="Pauza">⏸️ PAUZA</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM CONTROL DOCK (IN-GAME) -->
+      <div id="hud-bottom" class="hud-layer hidden">
+        <div class="bottom-dock">
+          <!-- Attack Button -->
+          <button id="btn-attack" class="attack-button" title="Atak bezpośredni (F / J / Klik)">
+            <div class="attack-icon" id="attack-icon">🥊</div>
+            <div class="attack-meta">
+              <span id="attack-name" class="attack-name">Cios Segregatorem</span>
+              <span class="attack-hint">[F / J / Klik]</span>
+            </div>
+          </button>
+
+          <!-- Ability Button -->
+          <button id="btn-ability" class="ability-button" title="Użyj umiejętności (E / Shift / Przycisk)">
+            <div class="ability-icon" id="ability-icon">📜</div>
+            <div class="ability-meta">
+              <span id="ability-name" class="ability-name">Pieczęć WZ</span>
+              <span class="ability-hint">[E / Przycisk]</span>
+            </div>
+            <div id="ability-cooldown-overlay" class="cooldown-overlay"></div>
+          </button>
+
+          <!-- Camera Angle -->
+          <button id="btn-camera" class="dock-btn" title="Zmień kąt widoku">
+            <span class="btn-icon">📐</span>
+            <span class="btn-text">Kamera</span>
+          </button>
+
+          <!-- Audio Toggle -->
+          <button id="btn-sound" class="dock-btn" title="Dźwięk i muzyka">
+            <span id="sound-icon" class="btn-icon">🔊</span>
+            <span class="btn-text">Audio</span>
+          </button>
+
+          <!-- Pause -->
+          <button id="btn-pause" class="dock-btn" title="Pauza (Esc)">
+            <span class="btn-icon">⏸️</span>
+            <span class="btn-text">Pauza</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TOUCH CONTROLS (Always available on touch screens / mobile) -->
+      <div id="touch-controls" class="touch-layer hidden">
+        <div id="touch-joystick-zone" class="joystick-zone">
+          <div id="joystick-base" class="joystick-base">
+            <div id="joystick-knob" class="joystick-knob"></div>
+          </div>
+        </div>
+        <div class="touch-actions-zone">
+          <button id="btn-touch-attack" class="touch-action-btn attack-touch-btn" title="Atak">🥊 ATAK</button>
+          <button id="btn-touch-ability" class="touch-action-btn ability-touch-btn" title="Moc">⚡ MOC</button>
+          <button id="btn-touch-jump" class="touch-action-btn jump-touch-btn" title="Skok">SKOK</button>
+        </div>
+      </div>
+
+      <!-- TITLE SCREEN / REDESIGNED TABBED MENU -->
+      <div id="title-screen" class="game-screen">
+        <div class="title-backdrop"></div>
+        <div class="title-sheet">
+          
+          <!-- Compact Brand Header -->
+          <div class="menu-top-header">
+            <div class="brand-badge-pill">MAX - FLIZ</div>
+            <h1 class="menu-game-title">MAGAZYN SHOWDOWN 3D</h1>
+            <p class="menu-game-subtitle">Zwariowana platformówka na magazynie gresu i wyposażenia wnętrz</p>
+          </div>
+
+          <!-- TAB NAVIGATION BAR -->
+          <div class="menu-tabs-bar">
+            <button class="menu-tab-btn active" data-tab="tab-team">
+              <span class="tab-icon">👷‍♂️</span>
+              <span class="tab-label">BOHATEROWIE</span>
+            </button>
+            <button class="menu-tab-btn" data-tab="tab-zones">
+              <span class="tab-icon">🗺️</span>
+              <span class="tab-label">STREFY</span>
+            </button>
+            <button class="menu-tab-btn" data-tab="tab-enemies">
+              <span class="tab-icon">⚠️</span>
+              <span class="tab-label">PRZECIWNICY</span>
+            </button>
+            <button class="menu-tab-btn" data-tab="tab-perks">
+              <span class="tab-icon">⚡</span>
+              <span class="tab-label">PERKI</span>
+            </button>
+            <button class="menu-tab-btn" data-tab="tab-leaderboard">
+              <span class="tab-icon">🏆</span>
+              <span class="tab-label">RANKING</span>
+            </button>
+            <button class="menu-tab-btn" data-tab="tab-story">
+              <span class="tab-icon">🎬</span>
+              <span class="tab-label">FABUŁA</span>
+            </button>
+          </div>
+
+          <!-- TAB CONTENT CONTAINER -->
+          <div class="menu-tab-content-area">
+
+            <!-- TAB 1: BOHATEROWIE -->
+            <div id="tab-team" class="tab-panel active">
+              <div class="char-grid">
+                <div class="char-card active" data-char="marcin">
+                  <div class="char-card-badge">👷‍♂️</div>
+                  <div class="char-card-name">Marcin</div>
+                  <div class="char-card-role">Kierownik Zmiany</div>
+                  <div class="char-card-ability">📜 Pieczęć WZ (Stun & Uspokojenie)</div>
+                </div>
+
+                <div class="char-card" data-char="grzesiek">
+                  <div class="char-card-badge">🚜</div>
+                  <div class="char-card-name">Grzesiek</div>
+                  <div class="char-card-role">Mistrz Wózka</div>
+                  <div class="char-card-ability">⚡ Turbo Paleciak (Dash Taranujący)</div>
+                </div>
+
+                <div class="char-card" data-char="dawid">
+                  <div class="char-card-badge">💪</div>
+                  <div class="char-card-name">Dawid</div>
+                  <div class="char-card-role">Ekspert Gresu</div>
+                  <div class="char-card-ability">🧱 Rzut Płytą (Zdalny atak i zbiór)</div>
+                </div>
+
+                <div class="char-card" data-char="mateusz">
+                  <div class="char-card-badge">☕</div>
+                  <div class="char-card-name">Mateusz</div>
+                  <div class="char-card-role">Specjalista VIP</div>
+                  <div class="char-card-ability">☕ Potrójne Espresso (Speed & Tarcza)</div>
+                </div>
+
+                <div class="char-card" data-char="piotr">
+                  <div class="char-card-badge">👨‍🔧</div>
+                  <div class="char-card-name">Piotr</div>
+                  <div class="char-card-role">Legenda Magazynu</div>
+                  <div class="char-card-ability">🛠️ Laserowa Poziomica (Laser Blast)</div>
+                </div>
+              </div>
+
+              <!-- Selected Hero Details Card -->
+              <div id="char-details-box" class="char-details-box">
+                <div class="char-details-title" id="char-detail-title">Marcin – Władca WZ-tek i Harmonogramu</div>
+                <div class="char-details-bio" id="char-detail-bio">Zna każdy kod kreskowy płytek na pamięć. Gdy krzyknie na korytarzu, nawet sztaplarka staje dęba.</div>
+                <div class="char-details-skill" id="char-detail-skill"><strong>Umiejętność:</strong> Pieczęć WZ-tki – wbija pieczęć w podłogę, ogłuszając wózki widłowe i uspokajając wściekłych klientów z fakturami!</div>
+
+                <!-- Numerical Visual Stat Bars -->
+                <div class="char-stats-container">
+                  <div class="stat-bar-row">
+                    <span class="stat-name">🏃 Szybkość biegu</span>
+                    <div class="stat-bar-track"><div id="stat-bar-speed" class="stat-bar-fill" style="width: 80%;"></div></div>
+                    <span id="stat-val-speed" class="stat-num">4 / 5</span>
+                  </div>
+                  <div class="stat-bar-row">
+                    <span class="stat-name">🦘 Wysokość skoku</span>
+                    <div class="stat-bar-track"><div id="stat-bar-jump" class="stat-bar-fill" style="width: 80%;"></div></div>
+                    <span id="stat-val-jump" class="stat-num">4 / 5</span>
+                  </div>
+                  <div class="stat-bar-row">
+                    <span class="stat-name">💪 Siła / Zasięg mocy</span>
+                    <div class="stat-bar-track"><div id="stat-bar-power" class="stat-bar-fill" style="width: 60%;"></div></div>
+                    <span id="stat-val-power" class="stat-num">3 / 5</span>
+                  </div>
+                  <div class="stat-bar-row">
+                    <span class="stat-name">🛡️ Odporność BHP</span>
+                    <div class="stat-bar-track"><div id="stat-bar-defense" class="stat-bar-fill" style="width: 80%;"></div></div>
+                    <span id="stat-val-defense" class="stat-num">4 / 5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: STREFY MAGAZYNU -->
+            <div id="tab-zones" class="tab-panel">
+              <div class="zones-list">
+                <div class="zone-card active" data-level="1">
+                  <div class="zone-badge">1</div>
+                  <div class="zone-info">
+                    <div class="zone-title">Strefa A: Aleja Płytek Hiszpańskich</div>
+                    <div class="zone-desc">Skacz po paletach z gresem Calacatta, omijaj wózek widłowy Zdzicha, uważaj na natrętnych architektów i zbierz 3 palety VIP!</div>
+                  </div>
+                </div>
+
+                <div class="zone-card" data-level="2">
+                  <div class="zone-badge">2</div>
+                  <div class="zone-info">
+                    <div class="zone-title">Strefa B: Sanitariaty & Wanny Wolnostojące</div>
+                    <div class="zone-desc">Luksusowe wanny służą jako trampoliny katapultujące na wysokie półki. Uważaj na Inspektora BHP i autonomiczne roboty AGV!</div>
+                  </div>
+                </div>
+
+                <div class="zone-card" data-level="3">
+                  <div class="zone-badge">3</div>
+                  <div class="zone-info">
+                    <div class="zone-title">Strefa C: Magazyn Wysokiego Składowania</div>
+                    <div class="zone-desc">Trzypiętrowe regały, taśmociągi, szybkie wózki widłowe i ostateczne starcie z bossem Walczakiem przed załadunkiem do firmowego vana!</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 3: PRZECIWNICY -->
+            <div id="tab-enemies" class="tab-panel">
+              <!-- Combat Guide Banner -->
+              <div class="combat-guide-banner">
+                <div class="combat-guide-title">⚔️ SYSTEM WALKI – JAK POKONYWAĆ PRZECIWNIKÓW?</div>
+                <div class="combat-guide-methods">
+                  <div class="combat-method">
+                    <span class="method-icon">🥊</span>
+                    <div class="method-text">
+                      <strong>Cios Bezpośredni [Klawisz F / J / Lewy Klik / Przycisk ATAK]</strong>
+                      <span>Wyprowadź cios z bliska segregatorem lub łatą. Zadaje 1 HP, odrzuca wroga do tyłu i ogłusza go!</span>
+                    </div>
+                  </div>
+                  <div class="combat-method">
+                    <span class="method-icon">👟</span>
+                    <div class="method-text">
+                      <strong>Skok na Głowę (Stomp) [SPACJA]</strong>
+                      <span>Klasyczny naskok z podestu lub po katapultowaniu z wanny. Naskok błyskawicznie uspokaja wroga!</span>
+                    </div>
+                  </div>
+                  <div class="combat-method">
+                    <span class="method-icon">⚡</span>
+                    <div class="method-text">
+                      <strong>Super Moc Postaci [E / Shift / Przycisk MOC]</strong>
+                      <span>Dawid rzuca ciężkimi płytkami, Marcin ogłusza obszarowo pieczęcią WZ, Grzesiek taranuje paleciakiem!</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="enemies-guide-grid">
+                <div class="enemy-guide-card">
+                  <div class="enemy-guide-badge">📑</div>
+                  <div class="enemy-guide-title">Klienci z Fakturami</div>
+                  <div class="enemy-guide-desc">Biegają po alejkach, krzycząc o rabatach i terminach dostawy. <strong>Wskocz im na głowę</strong> (stomp!), by ich uspokoić i zdobyć punkty!</div>
+                </div>
+
+                <div class="enemy-guide-card boss-guide-card">
+                  <div class="enemy-guide-badge">👔</div>
+                  <div class="enemy-guide-title">Były Kierownik Walczak (BOSS)</div>
+                  <div class="enemy-guide-desc">Krzyczy przez megafon i rzuca latającymi karami umownymi. Ma 3 punkty zdrowia. Skacz na niego lub użyj płytki Dawida!</div>
+                </div>
+
+                <div class="enemy-guide-card">
+                  <div class="enemy-guide-badge">🎨</div>
+                  <div class="enemy-guide-title">Architektka Wnętrz</div>
+                  <div class="enemy-guide-desc">Biega z wachlarzem próbek płytek i domaga się niemożliwych odcieni beżu. Po wskoczeniu na głowę upuszcza <strong>Podwójne Espresso (+Sprint)</strong>!</div>
+                </div>
+
+                <div class="enemy-guide-card">
+                  <div class="enemy-guide-badge">📋</div>
+                  <div class="enemy-guide-title">Inspektor BHP z PIP-u</div>
+                  <div class="enemy-guide-desc">W kamizelce odblaskowej, z gwizdkiem i protokołami. Paraliżuje gwizdkiem! Po pokonaniu upuszcza <strong>Atestowany Kask BHP (Tarczę)</strong>!</div>
+                </div>
+
+                <div class="enemy-guide-card">
+                  <div class="enemy-guide-badge">🤖</div>
+                  <div class="enemy-guide-title">Autonomiczny Wózek AGV</div>
+                  <div class="enemy-guide-desc">Przemysłowy robot patrolujący z obrotowym lidarem i stosem ceramiki. <strong>Wskocz na niego z góry</strong>, by wybić się jak z trampoliny na najwyższe regały!</div>
+                </div>
+
+                <div class="enemy-guide-card">
+                  <div class="enemy-guide-badge">🚜</div>
+                  <div class="enemy-guide-title">Sztaplarka Zdzicha</div>
+                  <div class="enemy-guide-desc">Szybki wózek widłowy patrolujący korytarze. Użyj pieczęci Marcina, aby go zatrzymać, lub przeskocz nad nim z wanny!</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 4: PERKI & SKLEP MAGAZYNOWY -->
+            <div id="tab-perks" class="tab-panel">
+              <div class="perks-panel-header">
+                <div class="perks-panel-title">🛠️ MAGAZYN NARZĘDZI & PERKI BHP</div>
+                <div class="perks-panel-desc">Aktywuj specjalistyczne ulepszenia magazynowe na swoją zmianę, aby z łatwością unikać kontroli i wspinać się na najwyższe regały!</div>
+              </div>
+              <div class="perk-shop-grid">
+                <div class="perk-card" data-perk="hardhat">
+                  <div class="perk-card-icon">⛑️</div>
+                  <div class="perk-card-content">
+                    <div class="perk-card-title">Atestowany Kask BHP</div>
+                    <div class="perk-card-desc">Absorbuje 1 bezpośrednie trafienie od wściekłego klienta lub kary Walczaka bez utraty kawy!</div>
+                  </div>
+                  <button class="btn-perk-activate" data-perk="hardhat">ZAŁÓŻ KASK</button>
+                </div>
+
+                <div class="perk-card" data-perk="vibram_boots">
+                  <div class="perk-card-icon">👟</div>
+                  <div class="perk-card-content">
+                    <div class="perk-card-title">Buty Robocze Vibram</div>
+                    <div class="perk-card-desc">Odblokowuje podwójny skok w powietrzu (25s) – sięgaj najwyższych palet wysokiego składu!</div>
+                  </div>
+                  <button class="btn-perk-activate" data-perk="vibram_boots">ZAŁÓŻ BUTY</button>
+                </div>
+
+                <div class="perk-card" data-perk="order_magnet">
+                  <div class="perk-card-icon">🧲</div>
+                  <div class="perk-card-content">
+                    <div class="perk-card-title">Radiowy Magnes Zamówień</div>
+                    <div class="perk-card-desc">Automatycznie przyciąga z 8 metrów wszystkie worki kleju, palety gresu i złote noże! (20s)</div>
+                  </div>
+                  <button class="btn-perk-activate" data-perk="order_magnet">WŁĄCZ MAGNES</button>
+                </div>
+
+                <div class="perk-card" data-perk="espresso_boost">
+                  <div class="perk-card-icon">☕</div>
+                  <div class="perk-card-content">
+                    <div class="perk-card-title">Showroomowe Espresso</div>
+                    <div class="perk-card-desc">Ekspresowy sprint (+55% szybkości na 18s) pozwalający błyskawicznie wymanewrować sztaplarki!</div>
+                  </div>
+                  <button class="btn-perk-activate" data-perk="espresso_boost">WYPIJ ESPRESSO</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 4: RANKING FIREBASE -->
+            <div id="tab-leaderboard" class="tab-panel">
+              <div class="leaderboard-container">
+                <div class="leaderboard-header-row">
+                  <div class="leaderboard-title">🔥 ZMIANOWY RANKING MAGAZYNU</div>
+                  <button id="btn-refresh-leaderboard" class="btn-refresh-pill" title="Odśwież ranking z Firebase">🔄 Odśwież</button>
+                </div>
+                <div id="leaderboard-loading" class="leaderboard-status-msg">Łączenie z bazą Firebase Firestore...</div>
+                <div id="leaderboard-list" class="leaderboard-list hidden"></div>
+              </div>
+            </div>
+
+            <!-- TAB 5: FABUŁA STORY -->
+            <div id="tab-story" class="tab-panel">
+              <div class="story-preview-card">
+                <div class="story-card-badge">🎬 ANIMOWANE INTRO FABULARNE</div>
+                <div class="story-card-title">AFERA W MAX-FLIZ: SAKRAMENCKA DOSTAWA GRESU</div>
+                <p class="story-card-desc">
+                  Były kierownik salonu Walczak zablokował aleje magazynowe, nasłał wściekłych klientów z fakturami i rozrzucił próbki! Poznaj pełną historię i dołącz do ekipy super-magazynierów.
+                </p>
+                <button id="btn-open-story-modal" class="btn-story-launch">
+                  <span class="launch-icon">🍿</span>
+                  <span>OTWÓRZ ANIMOWANE INTRO FABULARNE</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- FIXED BOTTOM START BAR -->
+          <div class="menu-fixed-bottom-bar">
+            <button id="btn-start-game" class="btn-primary-start">
+              <span class="start-text">ROZPOCZNIJ ZMIANĘ</span>
+              <span class="start-subtext">DOTKNIJ LUB NACIŚNIJ SPACJĘ / ENTER</span>
+            </button>
+            <div class="menu-controls-hint">
+              <span>Sterowanie: Ruchomy Joystick z lewej strony + Przyciski ATAK / MOC / SKOK</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STORY INTRO ANIMATED RETRO 3D MODAL -->
+      <div id="story-intro-modal" class="game-modal hidden">
+        <div class="modal-card story-modal-card retro-vhs-card">
+          <div class="vhs-scanlines-overlay"></div>
+          <div class="vhs-timestamp">REC 🔴 [1998-10-26 VHS 3D]</div>
+          <button id="btn-close-story" class="story-close-btn" title="Zamknij">✕</button>
+
+          <!-- Slide Progress Dots -->
+          <div class="story-progress-dots">
+            <div class="dot active" data-slide="0"></div>
+            <div class="dot" data-slide="1"></div>
+            <div class="dot" data-slide="2"></div>
+            <div class="dot" data-slide="3"></div>
+          </div>
+
+          <!-- Slide Content Viewport -->
+          <div class="story-slides-container">
+            <!-- Slide 0 -->
+            <div class="story-slide active" data-slide-index="0">
+              <div class="story-slide-badge retro-badge">📹 RETRO VHS AKT I: AFERA W MAX-FLIZ</div>
+              <div class="story-slide-icon retro-3d-icon">🏢⚡</div>
+              <div class="story-slide-title">Giga Dostawa Gresu & Sabotaż Walczaka!</div>
+              <div class="story-slide-text">
+                Ruszamy w retro podróż 3D do magazynu Max-Fliz! Były kierownik Walczak nie mógł znieść sukcesu nowej ekipy. Wkradł się w nocy, zaryglował aleje z włoskim spiekiem Calacatta Gold 120x280cm i nasłał tłum wściekłych klientów z fakturami!
+              </div>
+            </div>
+
+            <!-- Slide 1 -->
+            <div class="story-slide hidden" data-slide-index="1">
+              <div class="story-slide-badge retro-badge">🧱 RETRO VHS AKT II: ZEMSTA DAWIDA</div>
+              <div class="story-slide-icon retro-3d-icon">💪🧱</div>
+              <div class="story-slide-title">Zemsta Dawida: "Ja Wiem Lepiej!"</div>
+              <div class="story-slide-text">
+                Architekt chciał położyć 3-metrowe płyty bez fugi na ogrzewanie podłogowe?! <em>"Ja wiem najlepiej, jak gres pracuje!"</em> – grzmi Dawid. Łapie diamentową gilotynę do ceramiki i przysięga słodką zemstę na Walczaku za każdy uszczerbiony róg!
+              </div>
+            </div>
+
+            <!-- Slide 2 -->
+            <div class="story-slide hidden" data-slide-index="2">
+              <div class="story-slide-badge retro-badge">👨‍🔧 RETRO VHS AKT III: LEGENDA PIOTRA</div>
+              <div class="story-slide-icon retro-3d-icon">👨‍🔧⚡</div>
+              <div class="story-slide-title">Powrót Legendy: Były Pracownik Piotr!</div>
+              <div class="story-slide-text">
+                Z cienia korytarzy wyłania się Piotr – były pracownik i żywa legenda Max-Fliz! Przetrwał 14 reorganizacji magazynu i zna ukryte skróty. <em>"Za moich czasów palety nosiło się w zębach, a Walczak uciekał na widok poziomicy!"</em> – mówi Piotr, celując laserem.
+              </div>
+            </div>
+
+            <!-- Slide 3 -->
+            <div class="story-slide hidden" data-slide-index="3">
+              <div class="story-slide-badge retro-badge">🗣️ RETRO VHS AKT IV: KOMENTARZE EKIPY</div>
+              <div class="story-slide-icon retro-3d-icon">🥊☕</div>
+              <div class="story-slide-title">Głosy z Magazyn Showdown 3D!</div>
+              <div class="story-quotes-grid">
+                <div class="quote-item"><strong>👷‍♂️ Marcin:</strong> "Pieczęć na WZ-tce przybiję mu na czole!"</div>
+                <div class="quote-item"><strong>🚜 Grzesiek:</strong> "Paleciak ma 300 Nm momentu, schodzić z alei!"</div>
+                <div class="quote-item"><strong>💪 Dawid:</strong> "Ja wiem najlepiej – ten gres wytnie Walczaka!"</div>
+                <div class="quote-item"><strong>☕ Mateusz:</strong> "3 espresso wypite, widzę przyszłość VIP!"</div>
+                <div class="quote-item"><strong>👨‍🔧 Piotr:</strong> "Moja laserowa poziomica wyznaczy pion!"</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Navigation Bar -->
+          <div class="story-nav-bar">
+            <button id="btn-story-prev" class="btn-story-nav" disabled>⬅️ POPRZEDNI</button>
+            <button id="btn-story-next" class="btn-story-nav btn-primary">DALEJ ➔</button>
+            <button id="btn-story-play" class="btn-story-nav btn-start-now hidden">🚀 DO AKCJI!</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAUSE MODAL -->
+      <div id="pause-modal" class="game-modal hidden">
+        <div class="modal-card">
+          <div class="modal-title">PRZERWA KAWOWA (PAUZA)</div>
+          <p class="modal-desc">Wózek Zdzicha czeka na wolny korytarz. Napij się espresso i wracaj do pracy!</p>
+          <div class="modal-actions">
+            <button id="btn-resume" class="btn-modal btn-primary">WZNÓW GRĘ</button>
+            <button id="btn-restart-pause" class="btn-modal">RESTART POZIOMU</button>
+            <button id="btn-menu-pause" class="btn-modal">MENU GŁÓWNE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VICTORY MODAL -->
+      <div id="victory-modal" class="game-modal hidden">
+        <div class="modal-card victory-card">
+          <div class="modal-badge">🏆</div>
+          <div class="modal-title">ZAMÓWIENIE ZAŁADOWANE!</div>
+          <p id="victory-msg" class="modal-desc">Transport dla klienta VIP gotowy do odjazdu. Pan Zdzichu przybił piątkę!</p>
+          
+          <div class="stats-summary-grid">
+            <div class="summary-item">
+              <span class="summary-label">Zdobyte punkty</span>
+              <span id="victory-score" class="summary-value">1250</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Czas przejścia</span>
+              <span id="victory-time" class="summary-value">1:24</span>
+            </div>
+          </div>
+
+          <!-- Firebase High Score Submission -->
+          <div class="victory-submit-box">
+            <div class="submit-box-title">🏆 ZAPISZ WYNIK W RANKINGU FIREBASE</div>
+            <div class="submit-input-row">
+              <input type="text" id="player-nickname-input" class="nickname-input" placeholder="Wpisz imię / ksywkę" maxlength="24" value="Kierownik Marcin" />
+              <button id="btn-submit-score" class="btn-submit-score">💾 ZAPISZ</button>
+            </div>
+            <div id="submit-feedback-msg" class="submit-feedback hidden"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="btn-next-level" class="btn-modal btn-primary">NASTĘPNA STREFA</button>
+            <button id="btn-replay-level" class="btn-modal">ZAGRAJ PONOWNIE</button>
+            <button id="btn-menu-victory" class="btn-modal">MENU GŁÓWNE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- GAME OVER MODAL -->
+      <div id="gameover-modal" class="game-modal hidden">
+        <div class="modal-card gameover-card">
+          <div class="modal-badge">⚠️</div>
+          <div class="modal-title">AWARIA NA MAGAZYNIE!</div>
+          <p id="gameover-reason" class="modal-desc">Klient z fakturą zablokował cię awanturą!</p>
+          <div class="modal-actions">
+            <button id="btn-retry" class="btn-modal btn-primary">SPRÓBUJ PONOWNIE</button>
+            <button id="btn-menu-gameover" class="btn-modal">MENU GŁÓWNE</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
