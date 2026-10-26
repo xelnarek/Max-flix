@@ -14,11 +14,11 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const isBrowser = typeof window !== 'undefined';
+const isBrowser = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
 const safeStorage = {
   getItem(key: string): string | null {
-    if (!isBrowser || !window.localStorage) return null;
+    if (!isBrowser) return null;
     try {
       return window.localStorage.getItem(key);
     } catch {
@@ -26,20 +26,47 @@ const safeStorage = {
     }
   },
   setItem(key: string, value: string): void {
-    if (!isBrowser || !window.localStorage) return;
+    if (!isBrowser) return;
     try {
       window.localStorage.setItem(key, value);
     } catch {
-      // ignore storage quota errors gracefully
+      // ignore storage quota or private-mode errors
     }
   },
 };
+
+const parseCachedLeaderboard = (): LeaderboardEntry[] => {
+  try {
+    const raw = safeStorage.getItem('maxfliz_cached_leaderboard');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeLeaderboardEntry = (
+  data: Partial<LeaderboardEntry> & { id?: string },
+  fallbackId?: string
+): LeaderboardEntry => ({
+  id: data.id || fallbackId,
+  playerName: String(data.playerName || 'Magazynier').slice(0, 32),
+  hero: String(data.hero || 'Marcin'),
+  score: Number(data.score) || 0,
+  coins: Number(data.coins) || 0,
+  timeSeconds: Number(data.timeSeconds) || 0,
+  bossDefeated: Boolean(data.bossDefeated),
+  createdAt: String(data.createdAt || new Date().toISOString()),
+});
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore targeting the specific provisioned database ID
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = (firebaseConfig as any).firestoreDatabaseId
+  ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
+  : getFirestore(app);
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
@@ -81,7 +108,11 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+export function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): FirestoreErrorInfo {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -90,14 +121,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       emailVerified: auth.currentUser?.emailVerified,
       isAnonymous: auth.currentUser?.isAnonymous,
       tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
+      providerInfo:
+        auth.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
     },
     operationType,
-    path
+    path,
   };
+
   console.warn('Firestore Error Handled:', JSON.stringify(errInfo));
   return errInfo;
 }
@@ -175,9 +208,10 @@ export async function testFirestoreConnection(): Promise<boolean> {
 export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): Promise<string> {
   const collectionPath = 'leaderboard';
   const cleanId = `mf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
   const payload: LeaderboardEntry = {
-    playerName: (entry.playerName.trim() || 'Pracownik Magazynu').substring(0, 32),
-    hero: entry.hero || 'Marcin',
+    playerName: String(entry.playerName || 'Pracownik Magazynu').trim().slice(0, 32) || 'Pracownik Magazynu',
+    hero: String(entry.hero || 'Marcin'),
     score: Math.max(0, Math.floor(entry.score)),
     coins: Math.max(0, Math.floor(entry.coins)),
     timeSeconds: Math.max(0, Math.floor(entry.timeSeconds)),
@@ -186,13 +220,14 @@ export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): P
   };
 
   try {
-    const raw = safeStorage.getItem('maxfliz_cached_leaderboard');
-    const list: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
-    list.push({ ...payload, id: cleanId });
-    list.sort((a, b) => b.score - a.score);
-    safeStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(list.slice(0, 20)));
+    const cached = parseCachedLeaderboard();
+    const nextList = [...cached, { ...payload, id: cleanId }]
+      .sort((a, b) => Number(b.score) - Number(a.score))
+      .slice(0, 20);
+
+    safeStorage.setItem('maxfliz_cached_leaderboard', JSON.stringify(nextList));
   } catch {
-    // ignore local cache failures
+    // ignore caching errors
   }
 
   try {
@@ -210,27 +245,25 @@ export async function submitScore(entry: Omit<LeaderboardEntry, 'createdAt'>): P
  */
 export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEntry[]> {
   const collectionPath = 'leaderboard';
-  try {
-    const q = query(
-      collection(db, collectionPath),
-      orderBy('score', 'desc'),
-      limit(maxEntries)
-    );
 
+  try {
+    const q = query(collection(db, collectionPath), orderBy('score', 'desc'), limit(maxEntries));
     const snapshot = await getDocs(q);
-    const results: LeaderboardEntry[] = [];
-    snapshot.forEach((d) => {
+    const results = snapshot.docs.map((d) => {
       const data = d.data() as DocumentData;
-      results.push({
-        id: d.id,
-        playerName: data.playerName || 'Magazynier',
-        hero: data.hero || 'Marcin',
-        score: Number(data.score) || 0,
-        coins: Number(data.coins) || 0,
-        timeSeconds: Number(data.timeSeconds) || 0,
-        bossDefeated: Boolean(data.bossDefeated),
-        createdAt: data.createdAt || '',
-      });
+      return normalizeLeaderboardEntry(
+        {
+          id: d.id,
+          playerName: data.playerName,
+          hero: data.hero,
+          score: data.score,
+          coins: data.coins,
+          timeSeconds: data.timeSeconds,
+          bossDefeated: data.bossDefeated,
+          createdAt: data.createdAt,
+        },
+        d.id
+      );
     });
 
     if (results.length > 0) {
@@ -241,16 +274,12 @@ export async function getTopLeaderboard(maxEntries = 10): Promise<LeaderboardEnt
     handleFirestoreError(err, OperationType.LIST, collectionPath);
   }
 
-  try {
-    const raw = safeStorage.getItem('maxfliz_cached_leaderboard');
-    if (raw) {
-      const cached = JSON.parse(raw) as LeaderboardEntry[];
-      if (Array.isArray(cached) && cached.length > 0) {
-        return cached;
-      }
-    }
-  } catch {
-    // ignore parse errors and fall back to empty array
+  const cached = parseCachedLeaderboard();
+  if (cached.length > 0) {
+    return cached
+      .map((item) => normalizeLeaderboardEntry(item, item.id))
+      .sort((a, b) => Number(b.score) - Number(a.score))
+      .slice(0, maxEntries);
   }
 
   return [];
