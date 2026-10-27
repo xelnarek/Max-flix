@@ -2855,34 +2855,115 @@ export function createSztaplarEnemyModel(): {
 }
 
 /**
- * 26. Spray Graffiti Decal ("Arkadiusz, byłem tu")
+ * 26. Spray Graffiti Decal ("Arkadiusz, byłem tu") - MASSIVE & GLOWING
  */
-export function createSprayGraffitiDecal(text: string = "Arkadiusz, byłem tu"): THREE.Mesh {
+export function createSprayGraffitiDecal(text: string = "ARKADIUSZ"): THREE.Mesh {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
+  canvas.width = 1024;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
 
-  // Transparent background
-  ctx.clearRect(0, 0, 512, 128);
+  ctx.clearRect(0, 0, 1024, 512);
 
-  // Spray paint splatter effects
+  // Clean, Sharp Text - No blur, No stars, No glow effects
+  ctx.font = 'bold 96px "Arial", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+
+  // Strong dark stroke for legibility on floor
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(text, 512, 170);
+
+  // Main Text - Solid White
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, 512, 170);
+  
+  // Ghost symbol directly under the text without any stars or blur
+  ctx.font = '110px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Arial"';
+  ctx.fillText('👻', 512, 340);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.1), mat);
+  return mesh;
+}
+
+/**
+ * 27. Chalk Body Outline Crime Scene Decal ("Rudy Śmierdziuch") - LARGE & DISTINCT
+ */
+export function createCrimeSceneBodyOutlineDecal(label: string = 'RUDY ŚMIERDZIUCH'): THREE.Group {
+  const group = new THREE.Group();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 1024, 1024);
+
+  // Thick Crime Scene Caution Tape Border
   ctx.fillStyle = '#f59e0b';
-  for (let i = 0; i < 150; i++) {
-    const rx = Math.random() * 480 + 16;
-    const ry = Math.random() * 100 + 14;
-    const r = Math.random() * 3 + 1;
-    ctx.beginPath();
-    ctx.arc(rx, ry, r, 0, Math.PI * 2);
-    ctx.fill();
+  const bw = 30;
+  ctx.fillRect(0, 0, 1024, bw);
+  ctx.fillRect(0, 1024 - bw, 1024, bw);
+  ctx.fillRect(0, 0, bw, 1024);
+  ctx.fillRect(1024 - bw, 0, bw, 1024);
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 22px sans-serif';
+  for (let x = 40; x < 1000; x += 140) {
+    ctx.fillText('POLICJA • CRIME SCENE • DO NOT CROSS', x, bw - 6);
   }
 
-  // Neon Spray Text
-  ctx.font = 'bold 52px "Impact", "Arial Black", sans-serif';
-  ctx.fillStyle = '#38bdf8';
-  ctx.shadowColor = '#000000';
-  ctx.shadowBlur = 25;
-  ctx.fillText(text, 20, 80);
+  // White Chalk Silhouette - Thick & Messy
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 10;
+
+  ctx.beginPath();
+  ctx.arc(512, 220, 80, 0, Math.PI * 2); // Larger Head
+  ctx.moveTo(512, 300); // Torso
+  ctx.lineTo(512, 600);
+  ctx.moveTo(512, 380); // Arms
+  ctx.lineTo(320, 500);
+  ctx.lineTo(260, 640);
+  ctx.moveTo(512, 380);
+  ctx.lineTo(700, 500);
+  ctx.lineTo(760, 640);
+  ctx.moveTo(512, 600); // Legs
+  ctx.lineTo(380, 880);
+  ctx.moveTo(512, 600);
+  ctx.lineTo(640, 880);
+  ctx.stroke();
+
+  // Bold High-Contrast Label
+  ctx.font = '900 100px "Segoe UI", "Arial Black", sans-serif';
+  ctx.fillStyle = '#f1f5f9';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#ef4444';
+  ctx.shadowBlur = 35;
+  
+  // Outer Stroke for Label
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = '#ef4444';
+  ctx.strokeText(label, 512, 970);
+  ctx.fillText(label, 512, 970);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -2895,90 +2976,7 @@ export function createSprayGraffitiDecal(text: string = "Arkadiusz, byłem tu"):
     side: THREE.DoubleSide,
   });
 
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), mat);
-  return mesh;
-}
-
-/**
- * 27. Chalk Body Outline Crime Scene Decal ("Rudy. Rudy Śmierdziuch")
- */
-export function createCrimeSceneBodyOutlineDecal(label: string = 'KURIER'): THREE.Group {
-  const group = new THREE.Group();
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.clearRect(0, 0, 512, 512);
-
-  // Crime Scene Yellow Caution Tape Border
-  ctx.fillStyle = '#f59e0b';
-  ctx.fillRect(10, 10, 492, 12);
-  ctx.fillRect(10, 490, 492, 12);
-  ctx.fillRect(10, 10, 12, 492);
-  ctx.fillRect(490, 10, 12, 492);
-
-  ctx.fillStyle = '#000000';
-  ctx.font = 'bold 10px sans-serif';
-  for (let x = 20; x < 480; x += 60) {
-    ctx.fillText('CRIME SCENE', x, 20);
-    ctx.fillText('CRIME SCENE', x, 500);
-  }
-
-  // Label text next to the outline
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 24px "Segoe UI", sans-serif';
-  ctx.fillText(label, 300, 420);
-
-  // White Chalk Human Body Silhouette
-  ctx.strokeStyle = '#f8fafc';
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  ctx.beginPath();
-  // Head
-  ctx.arc(256, 100, 36, 0, Math.PI * 2);
-  // Torso & Arms & Legs Spread
-  ctx.moveTo(256, 136);
-  ctx.lineTo(256, 280);
-  // Left Arm
-  ctx.moveTo(256, 170);
-  ctx.lineTo(160, 220);
-  ctx.lineTo(130, 290);
-  // Right Arm
-  ctx.moveTo(256, 170);
-  ctx.lineTo(352, 220);
-  ctx.lineTo(380, 280);
-  // Left Leg
-  ctx.moveTo(256, 280);
-  ctx.lineTo(180, 420);
-  ctx.lineTo(150, 460);
-  // Right Leg
-  ctx.moveTo(256, 280);
-  ctx.lineTo(330, 420);
-  ctx.lineTo(360, 460);
-  ctx.stroke();
-
-  // White Chalk Label
-  ctx.font = 'bold 24px "Segoe UI", sans-serif';
-  ctx.fillStyle = '#ef4444';
-  ctx.textAlign = 'center';
-  ctx.fillText('RUDY. RUDY ŚMIERDZIUCH', 256, 440);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-
-  const mat = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.88,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-
-  const decalMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.8), mat);
+  const decalMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 4.8), mat);
   decalMesh.rotation.x = -Math.PI / 2;
   decalMesh.position.y = 0.02;
 

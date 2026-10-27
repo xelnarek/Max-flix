@@ -123,6 +123,8 @@ export class MaxFlizGameEngine {
   private marcinReclamationTimer = 0;
   private grzesiekCrushTimer = 0;
   private grzesiekCrushPulse = 0;
+  private mateuszPassiveCount = 0;
+  private mateuszLagTimer = 0;
 
   // Active Perks & Jump Modifiers
   private activePerks: ActivePerks = {
@@ -1222,15 +1224,18 @@ export class MaxFlizGameEngine {
     // Forklift Hazard
     this.addForkliftHazard('forklift_1', -24, 20, 0, 4.4, 0xf59e0b);
 
-    // Spray Graffiti & Crime Scene Chalk Outline Decals
-    const spray1 = createSprayGraffitiDecal('Arkadiusz tu był');
-    spray1.position.set(-5, 2.5, -12.8);
-    spray1.scale.setScalar(2.0);
-    this.levelRoot.add(spray1);
+    // Spray Graffiti & Crime Scene Chalk Outline Decals - PROMINENT FLOOR PLACEMENT
+    // Arkadiusz - Clear floor placement in open aisle away from shelves
+    const arkadiusz1 = createSprayGraffitiDecal();
+    arkadiusz1.position.set(-14, 0.05, -3.5);
+    arkadiusz1.rotation.x = -Math.PI / 2;
+    arkadiusz1.scale.set(1.4, 1.4, 1);
+    this.levelRoot.add(arkadiusz1);
 
     const crime1 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime1.position.set(-15, 0.05, 10.5);
-    crime1.scale.setScalar(2.2);
+    crime1.position.set(-26, 0.05, 8.5);
+    crime1.rotation.y = Math.PI / 4;
+    crime1.scale.setScalar(3.2); 
     this.levelRoot.add(crime1);
 
     // Expanded Dense Roster of Enemies on Level 1
@@ -1354,15 +1359,16 @@ export class MaxFlizGameEngine {
     // Easter Egg
     this.addEasterEgg('egg_throne_1', 30, 0.05, -9, 'Złoty Tron Prezesa z 24k Złotem', 'throne', 600);
 
-    // Decals
-    const spray2 = createSprayGraffitiDecal('Arkadiusz tu był');
-    spray2.position.set(0, 3.2, -13.8);
-    spray2.scale.setScalar(2.2);
+    // Decals - LARGE & VISIBLE ON FLOOR
+    const spray2 = createSprayGraffitiDecal();
+    spray2.position.set(0, 0.05, -4.0);
+    spray2.rotation.x = -Math.PI / 2;
+    spray2.scale.setScalar(2.5);
     this.levelRoot.add(spray2);
 
     const crime2 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime2.position.set(10, 0.05, 11.0);
-    crime2.scale.setScalar(2.5);
+    crime2.position.set(-28, 0.05, 9.0);
+    crime2.scale.setScalar(3.0);
     this.levelRoot.add(crime2);
 
     // Dense Enemies in Showroom
@@ -1385,6 +1391,18 @@ export class MaxFlizGameEngine {
     this.addKrolLetoBossEnemy('boss_krol_leto_l2', 24, 0);
 
     // Finish Loading Gate
+    // Arkadiusz tu był
+    const arkadiusz2 = createSprayGraffitiDecal();
+    arkadiusz2.position.set(12, 0.05, -7.0);
+    arkadiusz2.rotation.x = -Math.PI / 2;
+    arkadiusz2.scale.set(3.2, 2.2, 1);
+    this.levelRoot.add(arkadiusz2);
+
+    const crime2_boss = createCrimeSceneBodyOutlineDecal('INSPEKTOR BHP');
+    crime2_boss.position.set(12, 0.05, -6);
+    crime2_boss.scale.setScalar(3.5);
+    this.levelRoot.add(crime2_boss);
+
     const finishGate = createFinishGate();
     finishGate.position.set(34, 0, 0);
     this.levelRoot.add(finishGate);
@@ -1418,15 +1436,16 @@ export class MaxFlizGameEngine {
     backWall.position.set(0, 5.25, -16);
     this.levelRoot.add(backWall);
 
-    // Decals Level 3
-    const spray3 = createSprayGraffitiDecal('Arkadiusz tu był');
-    spray3.position.set(5, 3.5, -15.8);
-    spray3.scale.setScalar(2.5);
+    // Decals Level 3 - ULTIMATE FLOOR VISIBILITY
+    const spray3 = createSprayGraffitiDecal();
+    spray3.position.set(0, 0.05, -6.0);
+    spray3.rotation.x = -Math.PI / 2;
+    spray3.scale.setScalar(2.8);
     this.levelRoot.add(spray3);
 
     const crime3 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime3.position.set(-25, 0.05, 13.0);
-    crime3.scale.setScalar(2.8);
+    crime3.position.set(-32, 0.05, 11.0);
+    crime3.scale.setScalar(3.5);
     this.levelRoot.add(crime3);
 
     // Ominous Warning Neon Sign
@@ -1507,6 +1526,18 @@ export class MaxFlizGameEngine {
     this.addKrolLetoBossEnemy('boss_krol_leto_l3', 26, 4);
 
     // Final Victory Gate
+    // Arkadiusz tu był
+    const arkadiusz3 = createSprayGraffitiDecal();
+    arkadiusz3.position.set(-18, 0.05, -7.5);
+    arkadiusz3.rotation.x = -Math.PI / 2;
+    arkadiusz3.scale.set(3.5, 2.5, 1);
+    this.levelRoot.add(arkadiusz3);
+
+    const crime3_boss = createCrimeSceneBodyOutlineDecal('WALCZAK');
+    crime3_boss.position.set(20, 0.05, 5);
+    crime3_boss.scale.setScalar(4.0);
+    this.levelRoot.add(crime3_boss);
+
     const finishGate = createFinishGate();
     finishGate.position.set(40, 0, 0);
     this.levelRoot.add(finishGate);
@@ -1528,6 +1559,8 @@ export class MaxFlizGameEngine {
       if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - dt);
       if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - dt);
       if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - dt);
+      if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - dt);
+
       if (this.speechBubbleTimer > 0) {
         this.speechBubbleTimer -= dt;
         if (this.speechBubbleTimer <= 0) {
@@ -1798,10 +1831,12 @@ export class MaxFlizGameEngine {
 
         if (c.type === 'grout') {
           this.score += c.points;
+          this.handleMateuszPassive(1);
           sound.playPickup();
           this.emitFloatingToast(`+${c.points} Pkt Fuga`, c.x, c.y + 0.5, c.z, 'points');
         } else if (c.type === 'vip_item') {
           this.score += c.points;
+          this.handleMateuszPassive(1);
           this.collectedVipCount++;
           sound.playPickup(2);
           this.sayQuote(`ZEBRANO VIP: ${c.name}!`);
@@ -1817,6 +1852,7 @@ export class MaxFlizGameEngine {
           this.emitFloatingToast(`👟 VIBRAM BOOTS!`, c.x, c.y + 0.5, c.z, 'points');
         } else if (c.type === 'easter_egg') {
           this.score += c.points;
+          this.handleMateuszPassive(1);
           sound.playEasterEgg();
           this.sayQuote(`EASTER EGG ODNALEZIONY: ${c.name}! (+${c.points} pkt)`);
           this.emitFloatingToast(`🎉 EASTER EGG!`, c.x, c.y + 0.5, c.z, 'easter-egg');
@@ -2512,14 +2548,22 @@ export class MaxFlizGameEngine {
       });
       this.emitFloatingToast('🧱 GRESOWY DESZCZ!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'perk');
     } else if (this.currentCharacterId === 'mateusz') {
-      this.hp = this.maxHp;
+      this.hp = Math.min(this.maxHp, this.hp + 1);
       this.callbacks.onHpUpdate(this.hp, this.maxHp);
-      this.activatePerk('espresso_boost', 14);
-      this.activatePerk('vibram_boots', 14);
-      this.sayQuote('POTRÓJNE ESPRESSO 19 BARÓW! Maksymalny showroomowy flow i pełna regeneracja!');
-      sound.playPickup(3);
-      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.8, this.playerPos.z, 0xec4899);
-      this.emitFloatingToast('☕ PEŁNE ZDROWIE + SUPER SPRINT!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'perk');
+      this.sayQuote('BSOD! ŁAPCIE LAGA! Niech system Max-Fliz się zawiesi!');
+      sound.playAbility('mateusz');
+      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.8, this.playerPos.z, 0x3b82f6);
+      this.emitFloatingToast('🎮 ATAL BSOD: LAGI DLA WROGÓW!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'perk');
+      
+      this.enemies.forEach((e) => {
+        if (e.state === 'defeated') return;
+        const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
+        if (dist < 10.0) {
+          e.stunTimer = 5.0;
+          e.state = 'stunned';
+          this.emitFloatingToast('LAG...', e.x, e.y + 0.8, e.z, 'damage');
+        }
+      });
     } else if (this.currentCharacterId === 'piotr') {
       this.sayQuote('FLASZKA ZE SKARBCZYKA! 70% bimbru zza regału B4 – z drogi, bo będzie ogień!');
       this.throwBimberMolotov();
@@ -2798,6 +2842,7 @@ export class MaxFlizGameEngine {
     const comboMultiplier = 1 + (this.comboStreak - 1) * 0.25;
     const finalPoints = Math.round(points * comboMultiplier);
     this.score += finalPoints;
+    this.handleMateuszPassive(2);
 
     if (showToast) {
       this.emitFloatingToast(`+${finalPoints} Pkt Neutralizacja!`, e.x, e.y + 1, e.z, 'points');
@@ -2967,9 +3012,9 @@ export class MaxFlizGameEngine {
       targetZ += this.playerVel.z * 0.16;
     }
 
-    const offsetX = this.cameraMode === 'iso' ? 12 : 4.8;
-    const offsetY = this.cameraMode === 'iso' ? 14 : 4.4;
-    const offsetZ = this.cameraMode === 'iso' ? 12 : 5.2;
+    const offsetX = this.cameraMode === 'iso' ? 9.5 : 3.8;
+    const offsetY = this.cameraMode === 'iso' ? 10.5 : 3.5;
+    const offsetZ = this.cameraMode === 'iso' ? 9.5 : 4.2;
 
     const camTarget = new THREE.Vector3(targetX + offsetX, targetY + offsetY, targetZ + offsetZ);
 
@@ -3076,5 +3121,18 @@ export class MaxFlizGameEngine {
 
     this.callbacks.onPerksUpdate?.(this.activePerks);
     return true;
+  }
+
+  private handleMateuszPassive(amount: number) {
+    if (this.currentCharacterId !== 'mateusz') return;
+    this.mateuszPassiveCount += amount;
+    if (this.mateuszPassiveCount >= 9) {
+      this.mateuszPassiveCount -= 9;
+      this.activatePerk('espresso_boost', 3);
+      this.invulnerableTimer = Math.max(this.invulnerableTimer, 3);
+      this.sayQuote('UMOWA NA 9 MIESIĘCY! Speedrun aktywowany!');
+      this.emitFloatingToast('🚀 SPEEDRUN CONTRACT!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'combo');
+      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, 0xffffff);
+    }
   }
 }

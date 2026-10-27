@@ -81,21 +81,36 @@ class MaxFlizScene extends xb.Script {
     }
     const activeToasts: ActiveToast[] = [];
 
-    const createDialogueCard = (text: string, enemyType: string) => {
-      const container = document.getElementById('dialogue-box-container');
+    const activeDialogueThrottle = new Map<string, number>();
+
+    const createDialogueCard = (text: string, speakerType: string, side: 'left' | 'right' = 'right') => {
+      const containerId = side === 'left' ? 'dialogue-container-left' : 'dialogue-container-right';
+      const container = document.getElementById(containerId);
       if (!container) return;
 
+      const now = Date.now();
+      const throttleKey = `${speakerType}_${side}`;
+      const lastShout = activeDialogueThrottle.get(throttleKey) || 0;
+      if (now - lastShout < 3500) return;
+      activeDialogueThrottle.set(throttleKey, now);
+
+      // Clear both containers to prevent any overlapping cards on screen
+      const leftContainer = document.getElementById('dialogue-container-left');
+      const rightContainer = document.getElementById('dialogue-container-right');
+      if (leftContainer) leftContainer.innerHTML = '';
+      if (rightContainer) rightContainer.innerHTML = '';
+
       const card = document.createElement('div');
-      card.className = `dialogue-box-card border-${enemyType}`;
+      const isHero = side === 'left';
+      card.className = `dialogue-box-card ${isHero ? 'hero-style' : 'enemy-style'}`;
       
-      const meta = getEnemyMeta(enemyType);
+      const meta = isHero ? getHeroMeta() : getEnemyMeta(speakerType);
       
       card.innerHTML = `
         <div class="dialogue-box-avatar">${meta.avatar}</div>
         <div class="dialogue-box-content">
           <div class="dialogue-box-header">
             <span class="dialogue-box-name">${meta.name}</span>
-            <span class="dialogue-box-role">${meta.role}</span>
           </div>
           <p class="dialogue-box-text">${text}</p>
         </div>
@@ -103,11 +118,24 @@ class MaxFlizScene extends xb.Script {
 
       container.appendChild(card);
 
-      // Auto-remove with fade
       setTimeout(() => {
         card.classList.add('fading-out');
-        setTimeout(() => card.remove(), 500);
-      }, 4000);
+        setTimeout(() => {
+          if (card.parentElement === container) card.remove();
+        }, 400);
+      }, 4500);
+    };
+
+    const getHeroMeta = () => {
+      const def = CHARACTERS[this.selectedCharId];
+      const avatarIcons: Record<string, string> = {
+        marcin: '👷‍♂️', grzesiek: '🚜', dawid: '💪', mateusz: '🎮', piotr: '👨‍🔧',
+      };
+      return {
+        name: def.name,
+        role: 'BOHATER LOGISTYKI',
+        avatar: avatarIcons[this.selectedCharId] || '👷‍♂️'
+      };
     };
 
     const getEnemyMeta = (type: string) => {
@@ -265,11 +293,8 @@ class MaxFlizScene extends xb.Script {
           }
         },
         onSpeechBubble: (text) => {
-          if (!text) {
-            speechBubble.classList.add('hidden');
-          } else {
-            speechBubbleText.textContent = text;
-            speechBubble.classList.remove('hidden');
+          if (text) {
+            createDialogueCard(text, 'hero', 'left');
           }
         },
         onPerksUpdate: (perks) => {
@@ -307,6 +332,21 @@ class MaxFlizScene extends xb.Script {
           this.lastTimeSeconds = this.engine.getElapsedSeconds();
           this.lastBossDefeated = this.engine.isBossDefeated();
 
+          const victoryTitle = document.getElementById('victory-title');
+          if (victoryTitle) {
+            victoryTitle.textContent = levelId < 3 ? `SEKTOR ${levelId} ZALICZONY!` : 'MAGAZYN OPANOWANY!';
+          }
+
+          const btnNext = document.getElementById('btn-next-level');
+          if (btnNext) {
+            if (levelId < 3) {
+              btnNext.classList.remove('hidden');
+              btnNext.textContent = `WEJDŹ DO SEKTORA ${levelId + 1} ➡️`;
+            } else {
+              btnNext.classList.add('hidden');
+            }
+          }
+
           victoryScore.textContent = score.toString();
           victoryTime.textContent = timeStr;
           victoryModal.classList.remove('hidden');
@@ -324,11 +364,25 @@ class MaxFlizScene extends xb.Script {
           }
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = '💾 ZAPISZ';
+            submitBtn.textContent = '💾 ZAPISZ W RANKINGU';
           }
           if (feedbackMsg) {
             feedbackMsg.className = 'submit-feedback hidden';
             feedbackMsg.textContent = '';
+          }
+
+          // Auto-advance logic for "connected" sectors
+          if (levelId < 3) {
+            setTimeout(() => {
+              if (!victoryModal.classList.contains('hidden')) {
+                this.selectedLevelId = levelId + 1;
+                this.engine.startGame(this.selectedLevelId);
+                victoryModal.classList.add('hidden');
+                hudTop.classList.remove('hidden');
+                hudBottom.classList.remove('hidden');
+                touchControls.classList.remove('hidden');
+              }
+            }, 6500); // Give 6.5s to see score/save result
           }
         },
         onGameOver: (reason) => {
@@ -364,7 +418,7 @@ class MaxFlizScene extends xb.Script {
         marcin: '👷‍♂️',
         grzesiek: '🚜',
         dawid: '💪',
-        mateusz: '☕',
+        mateusz: '🎮',
         piotr: '👨‍🔧',
       };
       const abilityIcons: Record<CharacterId, string> = {

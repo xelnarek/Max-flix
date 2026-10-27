@@ -40,11 +40,8 @@
             <div id="perk-badge-speed" class="perk-badge perk-speed hidden" title="Podwójne Espresso (Sprint)">☕ SPRINT <span id="perk-speed-timer" class="perk-timer"></span></div>
           </div>
 
-          <div id="speech-bubble" class="speech-bubble hidden">
-            <span id="speech-bubble-text">Gdzie jest podpis na dokumencie WZ?!</span>
-          </div>
-
-          <div id="dialogue-box-container" class="dialogue-box-container"></div>
+          <div id="dialogue-container-left" class="dialogue-side-container left"></div>
+          <div id="dialogue-container-right" class="dialogue-side-container right"></div>
 
           <div id="boss-hud-bar" class="boss-hud-bar hidden">
             <div class="boss-label-row">
@@ -117,7 +114,7 @@
             <div class="ability-icon" id="ability-icon">📜</div>
             <div class="ability-meta">
               <span id="ability-name" class="ability-name">Pieczęć WZ</span>
-              <span class="ability-hint">[E / Przycisk]</span>
+              <span class="ability-hint">MOC [E]</span>
             </div>
             <div id="ability-cooldown-overlay" class="cooldown-overlay"></div>
           </button>
@@ -213,10 +210,10 @@
                 </div>
 
                 <div class="char-card" data-char="mateusz">
-                  <div class="char-card-badge">☕</div>
+                  <div class="char-card-badge">🎮</div>
                   <div class="char-card-name">Mateusz</div>
-                  <div class="char-card-role">Negocjator VIP</div>
-                  <div class="char-card-ability">☕ Espresso 19 Bar (Full Heal & Sprint)</div>
+                  <div class="char-card-role">Gejmer & PS Maniak</div>
+                  <div class="char-card-ability">⚡ Atak BSOD (Stun & Kawa)</div>
                 </div>
 
                 <div class="char-card" data-char="piotr">
@@ -487,28 +484,28 @@
               <div class="story-slide-icon retro-3d-icon">💪🧱</div>
               <div class="story-slide-title">Ekipa Max-Fliz Wkracza Do Akcji!</div>
               <div class="story-slide-text">
-                Marcin przybija WZ-tki pieczęcią reklamacyjną, Grzesiek używa 44 cm bicepsa i Ścisku Zagłady, Dawid rzuca wielkim gresem Calacatta 120x280 ("Ja Wiem Najlepiej!"), a Mateusz serwuje Potrójne Espresso 19 Barów!
+                Marcin przybija WZ-tki pieczęcią reklamacyjną, Grzesiek używa 44 cm bicepsa i Ścisku Zagłady, Dawid rzuca wielkim gresem Calacatta 120x280 ("Ja Wiem Najlepiej!"), a Mateusz rzuca padem DualSense i wywołuje BSOD!
               </div>
             </div>
 
             <div class="story-slide hidden" data-slide-index="2">
-              <div class="story-slide-badge retro-badge">🍾 RETRO VHS AKT III: LEGENDA PIOTRA</div>
-              <div class="story-slide-icon retro-3d-icon">🍾🔥</div>
-              <div class="story-slide-title">Piotr i Ukryta Flaszka Bimbru 70%!</div>
+              <div class="story-slide-badge retro-badge">🎮 RETRO VHS AKT III: LEGENDA GEJMERA</div>
+              <div class="story-slide-icon retro-3d-icon">🎮🔥</div>
+              <div class="story-slide-title">Mateusz i 9 Miesięcy Kontraktu!</div>
               <div class="story-slide-text">
-                Z cienia korytarzy wyłania się Piotr – weteran magazynu! Sięga za regał B4 po leżakowaną flaszkę 70% bimbru, podpala knot i ciska nią niczym koktajlem Mołotowa! Ogień na gresie czyści całą aleję z przeszkód!
+                Mateusz podpisał umowę na 9 miesięcy i traktuje magazyn jak Dark Souls. Gdy złapie "Laga", wrogowie stają w miejscu (BSOD), a on speedrunuje przez korytarze, zbierając trofea i pijąc kawę z automatu!
               </div>
             </div>
 
             <div class="story-slide hidden" data-slide-index="3">
-              <div class="story-slide-badge retro-badge">🗣️ RETRO VHS AKT IV: CITATY I HASŁA BOJOWE</div>
-              <div class="story-slide-icon retro-3d-icon">🥊☕</div>
+              <div class="story-slide-badge retro-badge">🗣️ RETRO VHS AKT IV: CYTATY I HASŁA BOJOWE</div>
+              <div class="story-slide-icon retro-3d-icon">🥊🎮</div>
               <div class="story-slide-title">Hasła Bojowe Magazyn Showdown 3D!</div>
               <div class="story-quotes-grid">
                 <div class="quote-item"><strong>👷‍♂️ Marcin:</strong> "Pieczęć WZ wbita! Protokół reklamacji zamyka sprawę!"</div>
                 <div class="quote-item"><strong>🚜 Grzesiek:</strong> "44 cm w ramieniu i Ścisk Zagłady miażdży aleję!"</div>
                 <div class="quote-item"><strong>💪 Dawid:</strong> "Gres 120x280 leci pod kątem 45° – Ja Wiem Najlepiej!"</div>
-                <div class="quote-item"><strong>☕ Mateusz:</strong> "Espresso 19 Barów wypite, VIP obsłużony w 30 sekund!"</div>
+                <div class="quote-item"><strong>🎮 Mateusz:</strong> "Laga mam! BSOD i platyna wpada na konto!"</div>
                 <div class="quote-item"><strong>🍾 Piotr:</strong> "Flaszka z bimbrem 70% zza regału B4! Ogień na gresie!"</div>
               </div>
             </div>
@@ -537,7 +534,7 @@
       <div id="victory-modal" class="game-modal hidden">
         <div class="modal-card victory-card">
           <div class="modal-badge">🏆</div>
-          <div class="modal-title">ZAMÓWIENIE ZAŁADOWANE!</div>
+          <div id="victory-title" class="modal-title">ZAMÓWIENIE ZAŁADOWANE!</div>
           <p id="victory-msg" class="modal-desc">Transport dla klienta VIP gotowy do odjazdu. Pan Zdzichu przybił piątkę!</p>
 
           <div class="stats-summary-grid">
@@ -581,6 +578,7 @@
       </div>
     </div>
 
+    <script type="module" src="/src/visual-polish.js"></script>
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>

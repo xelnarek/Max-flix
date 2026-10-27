@@ -227,6 +227,36 @@ const visualEnhancements = `
     }
   }
 
+  .dialogue-box-card {
+    background: linear-gradient(135deg, rgba(10, 15, 26, 0.45), rgba(10, 15, 26, 0.25)) !important;
+    border: none !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4) !important;
+    overflow: hidden;
+  }
+
+  .dialogue-box-card.hero-style {
+    border-left: 4px solid var(--maxfliz-blue) !important;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.12), transparent) !important;
+  }
+
+  .dialogue-box-card.enemy-style {
+    border-right: 4px solid var(--maxfliz-red) !important;
+    background: linear-gradient(-90deg, rgba(248, 113, 113, 0.12), transparent) !important;
+  }
+
+  .dialogue-box-avatar {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+    transform: scale(1.05);
+  }
+
+  .dialogue-box-name {
+    letter-spacing: 0.05em !important;
+    font-weight: 900 !important;
+    color: var(--maxfliz-accent) !important;
+    text-transform: uppercase;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;

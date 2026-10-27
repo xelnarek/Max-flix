@@ -94,31 +94,31 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   mateusz: {
     id: 'mateusz',
     name: 'Mateusz',
-    role: 'Główny Negocjator VIP & Showroomu',
-    title: 'Mistrz Dyplomacji i Espresso 19 Barów',
+    role: 'Gejmer & Maniak PlayStation (9 mies. kontraktu)',
+    title: 'Zdobywca Platyn i Pogromca Lagów',
     color: 0x7c3aed, // Purple / Indigo
     secondaryColor: 0xec4899,
-    speed: 8.2,
-    jumpForce: 9.2,
-    passiveName: 'Aura Showroomu & Luksusowy Combo Flow',
-    passiveDescription: 'Licznik Combo utrzymuje się 2x dłużej, a za każde zebrane zamówienie VIP i pokonanego wroga Mateusz otrzymuje +50% dodatkowych punktów.',
-    abilityName: 'Potrójne Espresso Ciśnieniowe 19 Bar',
-    abilityDescription: 'Wypija podwójne ristretto z salonowego ekspresu! Natychmiast leczy zdrowie do maksimum, zyskuje +70% prędkości sprintu, podwójny skok oraz niewrażliwość na 5 sekund.',
-    abilityCooldown: 6.5,
+    speed: 8.5,
+    jumpForce: 9.5,
+    passiveName: 'Efekt "9 Miesięcy Kontraktu"',
+    passiveDescription: 'Mateusz odlicza dni do wolności. Co 9 zebranych przedmiotów lub pokonanych wrogów wyzwala falę energii "Speedrun", dającą 3 sekundy nietykalności i +100% prędkości sprintu.',
+    abilityName: 'Atak Specjalny: "Pad DualSense & BSOD"',
+    abilityDescription: 'Mateusz rzuca padem DualSense, wywołując błąd systemu "Niebieski Ekran Śmierci" u wrogów! Wszyscy przeciwnicy w zasięgu 10m zostają zamrożeni w "lagu" na 5 sekund, a Mateusz zyskuje "Buffa z Patcha 1.0", który odnawia mu 1 kawę.',
+    abilityCooldown: 5.5,
     voiceLines: [
-      'Klient VIP czeka na salonie, musimy zrealizować to zamówienie bez sekundy opóźnienia!',
-      'Kawa z ekspresu ciśnieniowego na poziomie 2 to jedyny eliksir, jakiego potrzebuję!',
-      'Reklamacja? Jaka reklamacja, to jest zamierzony, szlachetny styl rustykalny!',
-      'Zapakuję to w bąbelki potrójnie, a klient wyjdzie z uśmiechem od ucha do ucha!',
-      'Projektant z Warszawy już dzwonił trzy razy – zrobimy to po mistrzowsku!',
-      'Dyplomacja to sztuka zadowolenia każdego, nawet w trakcie kryzysu na magazynie!'
+      'Pad mi się rozładował! Kto zajumał kabel USB-C z salonu?!',
+      'Mam umowę na 9 miesięcy, jeszcze tylko 270 dni do platyny w prawdziwym życiu!',
+      'To nie jest magazyn, to jest tryb Hardcore w Dark Souls, a Walczak to tylko średni boss.',
+      'Laga mam! Ktoś na biurze znowu odpalił Netflixa na łączu magazynowym!',
+      'Zaraz wpadnie trofeum: "Przetrwanie Zmiany bez Reklamacji"!',
+      'Press F to pay respects dla tej palety gresu... Walczak, GG WP!'
     ],
-    bio: 'Zawsze w nieskazitelnie wyprasowanej polówce Max-Fliz i ze stoperem w dłoni. Rozwiązuje każdy kryzys logistyczny w 30 sekund. Jego sekretna broń to włoska kawa podawana w porcelanie, która potrafi uspokoić nawet najbardziej krewkich inspektorów.',
+    bio: 'Maniak konsolowy, który każdą wolną chwilę na magazynie spędza planując kolejne trofeum. Podpisał umowę na 9 miesięcy i odlicza dni do wolności, traktując korytarze Max-Fliz jak mapę w wymagającym souliksie. Jego biurko w showroomie to w rzeczywistości zamaskowane stanowisko gamingowe z PS5.',
     stats: {
-      speed: 4,
+      speed: 5,
       jump: 4,
-      power: 3,
-      defense: 5
+      power: 4,
+      defense: 4
     }
   },
   piotr: {
