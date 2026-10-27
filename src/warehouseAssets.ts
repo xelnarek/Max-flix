@@ -1932,6 +1932,669 @@ export function createSecretFolderEasterEgg(): THREE.Group {
   return group;
 }
 
+/**
+ * 30. NEW ENEMY: Agresywny Handlowiec z Ofertami Rabatowymi
+ */
+export function createHandlowiecEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+  briefcase: THREE.Mesh;
+} {
+  const group = new THREE.Group();
 
+  const suitMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 }); // Bright corporate blue suit
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const briefcaseMat = new THREE.MeshStandardMaterial({ color: 0x78350f, metalness: 0.3, roughness: 0.4 });
+  const goldLockMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.2 });
 
+  // Body / Suit Jacket
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.22), suitMat);
+  body.position.y = 0.6;
+  body.castShadow = true;
 
+  // White Shirt & Red Tie Insert
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.48, 0.02), shirtMat);
+  shirt.position.set(0, 0.02, 0.115);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.35, 0.025), tieMat);
+  tie.position.set(0, -0.04, 0.12);
+  body.add(shirt, tie);
+  group.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.98;
+  head.castShadow = true;
+
+  // Sleek hair
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.148, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.8 }));
+  hair.position.y = 1.0;
+  group.add(head, hair);
+
+  // Legs
+  const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.42, 8);
+  const legL = new THREE.Mesh(legGeo, suitMat);
+  legL.position.set(-0.1, 0.21, 0);
+  legL.castShadow = true;
+
+  const legR = new THREE.Mesh(legGeo, suitMat);
+  legR.position.set(0.1, 0.21, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.05, 0.045, 0.38, 8);
+  const armL = new THREE.Mesh(armGeo, suitMat);
+  armL.position.set(-0.25, 0.65, 0);
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, suitMat);
+  armR.position.set(0.25, 0.65, 0);
+  armR.castShadow = true;
+
+  // Briefcase in Right Hand
+  const briefcase = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.35), briefcaseMat);
+  briefcase.position.set(0, -0.22, 0.1);
+  const goldLock = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.04, 0.06), goldLockMat);
+  goldLock.position.set(0, 0.08, 0);
+  briefcase.add(goldLock);
+  armR.add(briefcase);
+
+  group.add(armL, armR);
+
+  // Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.6, 0.6),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head, briefcase };
+}
+
+/**
+ * 31. NEW ENEMY: Monter Płytek z Młotkiem Gumowym ("Fuga pękła!")
+ */
+export function createMonterEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+  hammer: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const dungareesMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7 }); // Blue dungarees
+  const tShirtMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 }); // Red t-shirt
+  const kneePadMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.3 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.6 });
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 });
+
+  // Body / Dungarees
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.22), dungareesMat);
+  body.position.y = 0.6;
+  body.castShadow = true;
+
+  // Red T-shirt sleeves & top
+  const shirtUnder = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.225), tShirtMat);
+  shirtUnder.position.set(0, 0.16, 0);
+  body.add(shirtUnder);
+  group.add(body);
+
+  // Head with Builder Baseball Cap
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.98;
+  head.castShadow = true;
+
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.148, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.5), capMat);
+  cap.position.y = 1.0;
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.02, 16, 1, false, 0, Math.PI), capMat);
+  brim.rotation.x = -Math.PI / 2;
+  brim.position.set(0, 1.0, 0.12);
+  group.add(head, cap, brim);
+
+  // Legs with Knee Pads
+  const legGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.42, 8);
+  const legL = new THREE.Mesh(legGeo, dungareesMat);
+  legL.position.set(-0.1, 0.21, 0);
+  const padL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.06), kneePadMat);
+  padL.position.set(0, 0, 0.05);
+  legL.add(padL);
+
+  const legR = new THREE.Mesh(legGeo, dungareesMat);
+  legR.position.set(0.1, 0.21, 0);
+  const padR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.06), kneePadMat);
+  padR.position.set(0, 0, 0.05);
+  legR.add(padR);
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.38, 8);
+  const armL = new THREE.Mesh(armGeo, tShirtMat);
+  armL.position.set(-0.25, 0.65, 0);
+  const armR = new THREE.Mesh(armGeo, tShirtMat);
+  armR.position.set(0.25, 0.65, 0);
+
+  // Giant Rubber Mallet (Młotek do dobijania płytek)
+  const hammer = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8), woodMat);
+  const hammerHead = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.24, 12), rubberMat);
+  hammerHead.rotation.z = Math.PI / 2;
+  hammerHead.position.set(0, 0.24, 0);
+  hammer.add(hammerHead);
+  hammer.position.set(0, -0.15, 0.2);
+  hammer.rotation.x = 0.5;
+  armR.add(hammer);
+
+  group.add(armL, armR);
+
+  return { group, legL, legR, armL, armR, head, hammer };
+}
+
+/**
+ * 32. NEW ENEMY: Piorun Dron (Autonomiczny Dron Skanujący Kod Kreskowy AI)
+ */
+export function createPiorunDronModel(): {
+  group: THREE.Group;
+  rotors: THREE.Mesh[];
+  scannerBeam: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const carbonMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.7, roughness: 0.3 });
+  const yellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.3, roughness: 0.4 });
+  const redGlowMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+  const rotorMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.7 });
+
+  // Central Core
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), yellowMat);
+  core.position.y = 0.5;
+  group.add(core);
+
+  // Digital Eye / Camera Lens
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), carbonMat);
+  lens.rotation.x = Math.PI / 2;
+  lens.position.set(0, 0.5, 0.22);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), redGlowMat);
+  eye.position.set(0, 0.5, 0.26);
+  group.add(lens, eye);
+
+  // 4 Rotor Booms
+  const rotors: THREE.Mesh[] = [];
+  const angles = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4];
+  angles.forEach((ang) => {
+    const boom = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.45), carbonMat);
+    boom.rotation.y = ang;
+    boom.position.set(0, 0.5, 0);
+    group.add(boom);
+
+    // Motor Hub
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 12), carbonMat);
+    const dist = 0.42;
+    hub.position.set(Math.sin(ang) * dist, 0.54, Math.cos(ang) * dist);
+    group.add(hub);
+
+    // Spinning Blade
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 0.04), rotorMat);
+    blade.position.copy(hub.position);
+    blade.position.y += 0.04;
+    group.add(blade);
+    rotors.push(blade);
+  });
+
+  // Downward Scanning Laser Cone
+  const scanGeo = new THREE.ConeGeometry(0.8, 1.8, 16, 1, true);
+  scanGeo.translate(0, -0.9, 0);
+  const scanMat = new THREE.MeshBasicMaterial({
+    color: 0xef4444,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const scannerBeam = new THREE.Mesh(scanGeo, scanMat);
+  scannerBeam.position.set(0, 0.45, 0);
+  group.add(scannerBeam);
+
+  return { group, rotors, scannerBeam };
+}
+
+/**
+ * 33. NEW ENEMY: Elitarny Ochroniarz Walczaka (z Tarczą BHP i Pałką Kierowania Ruchem)
+ */
+export function createEliteGuardEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+  shield: THREE.Group;
+} {
+  const group = new THREE.Group();
+
+  const armorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7, roughness: 0.3 });
+  const redBatonMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xb91c1c, emissiveIntensity: 0.7 });
+  const visorMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9, roughness: 0.1 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+
+  // Heavy Tactical Vest
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.56, 0.28), armorMat);
+  body.position.y = 0.65;
+  body.castShadow = true;
+  group.add(body);
+
+  // Helmet with Visor
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), skinMat);
+  head.position.y = 1.05;
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.175, 16, 16), armorMat);
+  helmet.position.y = 1.06;
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.08), visorMat);
+  visor.position.set(0, 1.05, 0.14);
+  group.add(head, helmet, visor);
+
+  // Heavy Armored Legs
+  const legGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.44, 8);
+  const legL = new THREE.Mesh(legGeo, armorMat);
+  legL.position.set(-0.12, 0.22, 0);
+  const legR = new THREE.Mesh(legGeo, armorMat);
+  legR.position.set(0.12, 0.22, 0);
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.42, 8);
+  const armL = new THREE.Mesh(armGeo, armorMat);
+  armL.position.set(-0.28, 0.7, 0);
+
+  const armR = new THREE.Mesh(armGeo, armorMat);
+  armR.position.set(0.28, 0.7, 0);
+
+  // Heavy Riot Shield (Tarcza BHP Max-Fliz) in Left Arm
+  const shield = new THREE.Group();
+  const shieldPlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.85, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 })
+  );
+  const shieldCross = new THREE.Mesh(
+    new THREE.BoxGeometry(0.35, 0.12, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.4 })
+  );
+  shield.add(shieldPlate, shieldCross);
+  shield.position.set(0, -0.15, 0.25);
+  armL.add(shield);
+
+  // Glowing Traffic Baton in Right Arm
+  const baton = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 12), redBatonMat);
+  baton.position.set(0, -0.2, 0.15);
+  baton.rotation.x = 0.5;
+  armR.add(baton);
+
+  group.add(armL, armR);
+
+  return { group, legL, legR, armL, armR, head, shield };
+}
+
+/**
+ * 34. NEW 3D WORLD-DROP PERK PICKUP (Crate / Orb / Beacon)
+ */
+export function createDroppedPerkCrate(perkId: string, color: number): THREE.Group {
+  const group = new THREE.Group();
+  group.name = `dropped_perk_${perkId}`;
+
+  // 1. Vertical Atmospheric Light Beacon
+  const beaconGeo = new THREE.CylinderGeometry(0.12, 0.5, 8.0, 16, 1, true);
+  beaconGeo.translate(0, 4.0, 0);
+  const beaconMat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.28,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+  beacon.renderOrder = 10;
+  group.add(beacon);
+
+  // 2. Pulsing Ground Ring
+  const groundRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.4, 0.8, 32),
+    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.65 })
+  );
+  groundRing.rotation.x = -Math.PI / 2;
+  groundRing.position.y = 0.02;
+  group.add(groundRing);
+
+  // 3. Floating Holographic Outer Cage / Octahedron
+  const cageGeo = new THREE.OctahedronGeometry(0.38, 0);
+  const cageMat = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0.5,
+    metalness: 0.9,
+    roughness: 0.1,
+    wireframe: true,
+  });
+  const cage = new THREE.Mesh(cageGeo, cageMat);
+  cage.position.y = 0.75;
+  group.add(cage);
+
+  // 4. Rotating Energy Rings
+  const ring1 = new THREE.Mesh(
+    new THREE.TorusGeometry(0.44, 0.025, 8, 24),
+    new THREE.MeshBasicMaterial({ color })
+  );
+  ring1.position.y = 0.75;
+  ring1.rotation.x = Math.PI / 3;
+  group.add(ring1);
+
+  // 5. Iconic 3D Core Prop
+  let coreProp: THREE.Object3D;
+  if (perkId === 'hardhat') {
+    coreProp = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.5, roughness: 0.2, emissive: 0x1d4ed8, emissiveIntensity: 0.5 })
+    );
+  } else if (perkId === 'vibram_boots') {
+    const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 0.24), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 0.5 }));
+    bootL.position.x = -0.08;
+    const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 0.24), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 0.5 }));
+    bootR.position.x = 0.08;
+    coreProp = new THREE.Group();
+    coreProp.add(bootL, bootR);
+  } else if (perkId === 'order_magnet') {
+    coreProp = new THREE.Mesh(
+      new THREE.TorusGeometry(0.18, 0.06, 12, 24, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.8, emissive: 0x6d28d9, emissiveIntensity: 0.6 })
+    );
+    coreProp.rotation.z = Math.PI;
+  } else {
+    // Espresso
+    coreProp = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.15, 0.1, 0.2, 16),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.6 })
+    );
+  }
+  coreProp.position.y = 0.75;
+  group.add(coreProp);
+
+  return group;
+}
+
+/**
+ * 35. Industrial Steam Vent / Valve Pipe
+ */
+export function createIndustrialSteamVent(): THREE.Group {
+  const group = new THREE.Group();
+  const pipeMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.3 });
+  const valveMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.5, roughness: 0.4 });
+
+  // Main vertical pipe
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2, 16), pipeMat);
+  pipe.position.y = 1.1;
+
+  // Horizontal nozzle
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6, 16), pipeMat);
+  nozzle.rotation.z = Math.PI / 2;
+  nozzle.position.set(0.3, 1.8, 0);
+
+  // Wheel valve
+  const valve = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16), valveMat);
+  valve.position.set(0, 1.4, 0.12);
+
+  group.add(pipe, nozzle, valve);
+  return group;
+}
+
+/**
+ * 36. Neon Showroom Overhead Billboard Sign
+ */
+export function createNeonShowroomSign(text: string, neonColor = '#38bdf8'): THREE.Group {
+  const group = new THREE.Group();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  // Dark metallic backdrop
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 1024, 256);
+
+  ctx.strokeStyle = neonColor;
+  ctx.lineWidth = 10;
+  ctx.strokeRect(10, 10, 1004, 236);
+
+  // Neon text glow
+  ctx.shadowColor = neonColor;
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 64px "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 512, 128);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const signMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(6.0, 1.5, 0.15),
+    new THREE.MeshStandardMaterial({
+      map: texture,
+      emissive: new THREE.Color(neonColor),
+      emissiveIntensity: 0.5,
+      roughness: 0.2,
+      metalness: 0.4,
+    })
+  );
+  group.add(signMesh);
+
+  return group;
+}
+
+/**
+ * 37. Elevated Steel High-Bay Catwalk Platform
+ */
+export function createHighBayCatwalk(width: number, depth: number): THREE.Group {
+  const group = new THREE.Group();
+
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6, roughness: 0.4 }); // Safety yellow rail
+
+  // Steel grating floor
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.12, depth), steelMat);
+  group.add(floor);
+
+  // Safety railings on both sides
+  const railBack = new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, 0.05), railMat);
+  railBack.position.set(0, 0.4, -depth / 2 + 0.025);
+  const railFront = new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, 0.05), railMat);
+  railFront.position.set(0, 0.4, depth / 2 - 0.025);
+
+  group.add(railBack, railFront);
+  return group;
+}
+
+/**
+ * 38. Piotr's Signature Hidden Bimber Moonshine Bottle (Koktajl Mołotowa)
+ * An authentic vintage glass moonshine bottle with a burning rag wick!
+ */
+export function createBimberBottleMolotov(): {
+  group: THREE.Group;
+  flameMesh: THREE.Mesh;
+  flameLight: THREE.PointLight;
+} {
+  const group = new THREE.Group();
+
+  // Glass bottle body (thick greenish-amber glass)
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x3d5a2b,
+    roughness: 0.15,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.82,
+  });
+  const bottleBody = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.42, 16), glassMat);
+  bottleBody.position.y = 0.21;
+  bottleBody.castShadow = true;
+
+  // Bimber moonshine liquid inside (golden amber 70%)
+  const liquidMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    roughness: 0.1,
+    metalness: 0.2,
+    emissive: 0xd97706,
+    emissiveIntensity: 0.35,
+  });
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.125, 0.3, 16), liquidMat);
+  liquid.position.y = 0.16;
+
+  // Vintage Moonshine Label
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.7 });
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.125, 0.18, 16, 1, true, 0, Math.PI * 1.3), labelMat);
+  label.position.y = 0.21;
+
+  // Bottle Shoulder taper
+  const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.12, 16), glassMat);
+  shoulder.position.y = 0.48;
+
+  // Slender Bottle Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.18, 16), glassMat);
+  neck.position.y = 0.63;
+
+  // Cork Stopper
+  const corkMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.9 });
+  const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.04, 0.06, 12), corkMat);
+  cork.position.y = 0.73;
+
+  // Burning Cloth Wick (Rag soaked in bimber)
+  const ragMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 });
+  const rag = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.14, 8), ragMat);
+  rag.position.set(0.01, 0.8, 0);
+  rag.rotation.z = -0.15;
+
+  // Fiery Flame at the tip of the wick
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0xff5500 });
+  const flameMesh = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 12), flameMat);
+  flameMesh.position.set(0.02, 0.92, 0);
+
+  // Inner bright yellow flame core
+  const innerFlame = new THREE.Mesh(
+    new THREE.ConeGeometry(0.035, 0.11, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffff00 })
+  );
+  innerFlame.position.y = -0.02;
+  flameMesh.add(innerFlame);
+
+  // Flickering Warm Light
+  const flameLight = new THREE.PointLight(0xff6600, 2.2, 5.0);
+  flameLight.position.set(0.02, 0.92, 0);
+
+  group.add(bottleBody, liquid, label, shoulder, neck, cork, rag, flameMesh, flameLight);
+  group.scale.setScalar(0.95);
+
+  return { group, flameMesh, flameLight };
+}
+
+/**
+ * 39. Lingering Burning Pool of Bimber (Morze Ognia Koktajlu Mołotowa)
+ * Raging flaming ground puddle with animated flickering fire spires!
+ */
+export function createMolotovFirePuddle(radius = 3.8): {
+  group: THREE.Group;
+  flames: THREE.Mesh[];
+  light: THREE.PointLight;
+} {
+  const group = new THREE.Group();
+
+  // Charred ground scorch mark & molten flaming bimber liquid
+  const groundGeo = new THREE.CircleGeometry(radius, 32);
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x1c1917,
+    roughness: 0.4,
+    emissive: 0xd97706,
+    emissiveIntensity: 0.65,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide,
+  });
+  const scorchMesh = new THREE.Mesh(groundGeo, groundMat);
+  scorchMesh.rotation.x = -Math.PI / 2;
+  scorchMesh.position.y = 0.02;
+  group.add(scorchMesh);
+
+  // Flaming fiery center ring
+  const ringGeo = new THREE.RingGeometry(0.2, radius * 0.85, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xff3b00,
+    transparent: true,
+    opacity: 0.75,
+    side: THREE.DoubleSide,
+  });
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  ringMesh.rotation.x = -Math.PI / 2;
+  ringMesh.position.y = 0.03;
+  group.add(ringMesh);
+
+  // Multiple 3D flickering flame spires distributed across the puddle
+  const flames: THREE.Mesh[] = [];
+  const flameColors = [0xff2200, 0xff5500, 0xff9900, 0xffd000];
+
+  const flameCount = 14;
+  for (let i = 0; i < flameCount; i++) {
+    const height = 0.6 + Math.random() * 0.9;
+    const baseRadius = 0.12 + Math.random() * 0.16;
+    const color = flameColors[i % flameColors.length];
+
+    const coneGeo = new THREE.ConeGeometry(baseRadius, height, 10);
+    const coneMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const flame = new THREE.Mesh(coneGeo, coneMat);
+
+    // Random position within circle
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * (radius * 0.78);
+    const fx = Math.cos(angle) * r;
+    const fz = Math.sin(angle) * r;
+    flame.position.set(fx, height / 2 + 0.04, fz);
+
+    // Store custom animation phase
+    flame.userData = {
+      baseY: height / 2 + 0.04,
+      baseHeight: height,
+      baseScale: 1.0,
+      phase: Math.random() * Math.PI * 2,
+      speed: 10 + Math.random() * 12,
+    };
+
+    // Inner bright yellow tip
+    const innerTip = new THREE.Mesh(
+      new THREE.ConeGeometry(baseRadius * 0.55, height * 0.55, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.9 })
+    );
+    innerTip.position.y = -height * 0.1;
+    flame.add(innerTip);
+
+    group.add(flame);
+    flames.push(flame);
+  }
+
+  // Warm fire illumination
+  const light = new THREE.PointLight(0xff5500, 3.8, 10.0);
+  light.position.set(0, 1.2, 0);
+  group.add(light);
+
+  return { group, flames, light };
+}

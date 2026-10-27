@@ -3,12 +3,15 @@ import { CHARACTERS } from './characters.ts';
 import { sound } from './sound.ts';
 import {
   ActivePerks,
+  AVAILABLE_PERKS,
   CharacterDef,
   CharacterId,
   CollectibleItem,
+  DroppedPerkItem,
   EnemyItem,
   GameState,
   HazardItem,
+  PerkType,
   PlatformBlock,
 } from './types.ts';
 import {
@@ -16,20 +19,30 @@ import {
   createAgvRobotModel,
   createAisleArrow,
   createBathtubModel,
+  createBimberBottleMolotov,
+  createMolotovFirePuddle,
   createCarraraCollectible,
   createCharacterModel,
   createCustomerEnemyModel,
   createDeliveryVan,
+  createDroppedPerkCrate,
+  createEliteGuardEnemyModel,
   createEspressoCollectible,
   createFinishGate,
   createForkliftModel,
   createGoldenCutterCollectible,
   createGoldenThroneEasterEgg,
   createGroutCollectible,
+  createHandlowiecEnemyModel,
+  createHighBayCatwalk,
   createHighBayLamp,
+  createIndustrialSteamVent,
   createInspectorEnemyModel,
   createMagnetCollectible,
+  createMonterEnemyModel,
+  createNeonShowroomSign,
   createPenaltyNoticeProjectile,
+  createPiorunDronModel,
   createSecretFolderEasterEgg,
   createTilePallet,
   createVintageCoffeeCornerEasterEgg,
@@ -51,13 +64,15 @@ export interface GameCallbacks {
   onGameOver: (reason: string) => void;
   onBossUpdate?: (name: string, hp: number, maxHp: number, visible: boolean) => void;
   onPerksUpdate?: (perks: ActivePerks) => void;
-  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg') => void;
+  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo') => void;
+  onPerkDropBanner?: (name: string, icon: string, desc: string, color: string) => void;
 }
 
 export class MaxFlizGameEngine {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public container: HTMLElement;
+
 
   private state: GameState = 'title';
   private currentCharacterId: CharacterId = 'marcin';
@@ -89,7 +104,9 @@ export class MaxFlizGameEngine {
   private screenShakeDuration = 0;
   private screenShakeIntensity = 0;
   private screenShakeTimer = 0;
-  private cameraMode: 'iso' | 'close' = 'iso';
+  private cameraMode: 'iso' | 'close' = 'close';
+  private dodgeCooldownTimer = 0;
+  private targetRing!: THREE.Mesh;
 
   public triggerScreenShake(intensity: number, durationSec: number = 0.5) {
     this.screenShakeIntensity = Math.max(this.screenShakeIntensity, intensity);
@@ -124,6 +141,7 @@ export class MaxFlizGameEngine {
   private levelRoot = new THREE.Group();
   private platforms: PlatformBlock[] = [];
   private collectibles: CollectibleItem[] = [];
+  private droppedPerks: DroppedPerkItem[] = [];
   private hazards: HazardItem[] = [];
   private enemies: EnemyItem[] = [];
   private enemyProjectiles: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }[] = [];
@@ -145,6 +163,27 @@ export class MaxFlizGameEngine {
     grow: number;
     spin: number;
     update?: (dt: number, progress: number) => void;
+  }[] = [];
+  private bimberMolotovs: {
+    mesh: THREE.Group;
+    pos: THREE.Vector3;
+    vel: THREE.Vector3;
+    spin: THREE.Vector3;
+    life: number;
+    flameLight?: THREE.PointLight;
+    flameMesh?: THREE.Mesh;
+  }[] = [];
+  private bimberFirePuddles: {
+    group: THREE.Group;
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    duration: number;
+    maxDuration: number;
+    tickTimer: number;
+    flames: THREE.Mesh[];
+    light: THREE.PointLight;
   }[] = [];
 
   // Input state
@@ -336,7 +375,7 @@ export class MaxFlizGameEngine {
       magnet: 0,
       speedBoost: 0,
     };
-    this.cameraMode = 'iso';
+    this.cameraMode = 'close';
     this.callbacks.onPerksUpdate?.(this.activePerks);
     this.callbacks.onSpeechBubble('');
     this.loadLevel(levelId);
@@ -360,12 +399,15 @@ export class MaxFlizGameEngine {
     }
     this.platforms = [];
     this.collectibles = [];
+    this.droppedPerks = [];
     this.hazards = [];
     this.enemies = [];
     this.enemyProjectiles = [];
     this.particles = [];
     this.projectiles = [];
     this.specialEffects = [];
+    this.bimberMolotovs = [];
+    this.bimberFirePuddles = [];
     this.totalVipCount = 0;
     this.collectedVipCount = 0;
     this.marcinReclamationTimer = 0;
@@ -627,12 +669,12 @@ export class MaxFlizGameEngine {
       x,
       y: 0.6,
       z,
-      startX: x - 12,
-      endX: x + 12,
+      startX: x - 14,
+      endX: x + 14,
       speed: 3.2,
       dir: -1,
-      hp: 8,
-      maxHp: 8,
+      hp: 10,
+      maxHp: 10,
       state: 'patrol',
       stunTimer: 0,
       shoutTimer: 0,
@@ -643,18 +685,274 @@ export class MaxFlizGameEngine {
       legR: built.legR,
       armL: built.armL,
       armR: built.armR,
-      specialActionTimer: 3,
+      specialActionTimer: 2.5,
       bossPhase: 1,
     });
-    this.callbacks.onBossUpdate?.('Były Kierownik Walczak', 8, 8, true);
+    this.callbacks.onBossUpdate?.('Były Kierownik Walczak', 10, 10, true);
   }
 
-  private emitFloatingToast(text: string, worldX: number, worldY: number, worldZ: number, type: 'points' | 'vip' | 'easter-egg' = 'points') {
+  private addInspectorEnemy(id: string, x: number, minX: number, maxX: number, name: string) {
+    const built = createInspectorEnemyModel();
+    built.group.position.set(x, 0.4, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'inspector',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.4,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 2.0,
+      dir: 1,
+      hp: 3,
+      maxHp: 3,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      specialActionTimer: 2.5,
+    });
+  }
+
+  private addHandlowiecEnemy(id: string, x: number, minX: number, maxX: number, name: string) {
+    const built = createHandlowiecEnemyModel();
+    built.group.position.set(x, 0.4, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'handlowiec',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.4,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 2.8,
+      dir: 1,
+      hp: 3,
+      maxHp: 3,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      specialActionTimer: 3.0,
+    });
+  }
+
+  private addMonterEnemy(id: string, x: number, minX: number, maxX: number, name: string) {
+    const built = createMonterEnemyModel();
+    built.group.position.set(x, 0.4, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'monter',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.4,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 2.2,
+      dir: 1,
+      hp: 4,
+      maxHp: 4,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      specialActionTimer: 2.8,
+    });
+  }
+
+  private addPiorunDronEnemy(id: string, startX: number, endX: number, z: number, y = 1.9, name = 'Piorun Dron Magazynowy AI') {
+    const built = createPiorunDronModel();
+    built.group.position.set(startX, y, z);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'piorun_dron',
+      name,
+      mesh: built.group,
+      x: startX,
+      y,
+      z,
+      startX,
+      endX,
+      speed: 3.5,
+      dir: 1,
+      hp: 2,
+      maxHp: 2,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.rotors[0],
+      legR: built.rotors[1],
+      armL: built.rotors[2],
+      armR: built.rotors[3],
+    });
+  }
+
+  private addEliteGuardEnemy(id: string, x: number, minX: number, maxX: number, name: string) {
+    const built = createEliteGuardEnemyModel();
+    built.group.position.set(x, 0.5, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'elite_walczak_guard',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.5,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 2.4,
+      dir: 1,
+      hp: 5,
+      maxHp: 5,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      shieldActive: true,
+    });
+  }
+
+  public spawnDroppedPerk(x: number, y: number, z: number, forcedPerkId?: PerkType) {
+    const perkDef = forcedPerkId
+      ? AVAILABLE_PERKS.find((p) => p.id === forcedPerkId)!
+      : AVAILABLE_PERKS[Math.floor(Math.random() * AVAILABLE_PERKS.length)];
+
+    const id = `drop_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const mesh = createDroppedPerkCrate(perkDef.id, perkDef.color);
+    mesh.position.set(x, y + 0.1, z);
+    this.levelRoot.add(mesh);
+
+    const dropped: DroppedPerkItem = {
+      id,
+      perkId: perkDef.id,
+      name: perkDef.name,
+      icon: perkDef.icon,
+      color: perkDef.color,
+      x,
+      y: y + 0.1,
+      z,
+      initialY: y + 0.1,
+      mesh,
+      collected: false,
+      life: 55, // 55 seconds to collect
+      duration: perkDef.duration || 20,
+    };
+
+    this.droppedPerks.push(dropped);
+    this.spawnParticleRing(x, y + 0.6, z, perkDef.color);
+    this.emitFloatingToast(`📦 ZRZUT: ${perkDef.name}!`, x, y + 1.2, z, 'perk');
+    sound.playPickup(1);
+  }
+
+  private updateDroppedPerks(dt: number) {
+    const time = performance.now() * 0.003;
+
+    for (let i = this.droppedPerks.length - 1; i >= 0; i--) {
+      const perk = this.droppedPerks[i];
+      if (perk.collected || !perk.mesh) continue;
+
+      perk.life -= dt;
+      if (perk.life <= 0) {
+        this.levelRoot.remove(perk.mesh);
+        this.droppedPerks.splice(i, 1);
+        continue;
+      }
+
+      // Floating bob and spin
+      perk.mesh.rotation.y += dt * 2.2;
+      perk.mesh.position.y = perk.initialY + Math.sin(time + i * 1.5) * 0.18;
+
+      // Magnetic pull to player
+      const dist = Math.hypot(perk.x - this.playerPos.x, perk.z - this.playerPos.z);
+      const dy = Math.abs(perk.y - (this.playerPos.y + 0.5));
+
+      const magnetActive = this.activePerks.magnet > 0 || this.charDef.id === 'marcin';
+      const magnetRadius = magnetActive ? 9.5 : 2.5;
+
+      if (dist < magnetRadius) {
+        const pullSpeed = (magnetActive ? 10.5 : 4.5) * dt;
+        perk.x += ((this.playerPos.x - perk.x) / Math.max(0.1, dist)) * pullSpeed;
+        perk.z += ((this.playerPos.z - perk.z) / Math.max(0.1, dist)) * pullSpeed;
+        perk.y += ((this.playerPos.y + 0.6 - perk.y) / Math.max(0.1, dist)) * pullSpeed;
+        perk.mesh.position.set(perk.x, perk.y, perk.z);
+      }
+
+      // Collect condition
+      if (dist < 1.15 && dy < 1.4) {
+        perk.collected = true;
+        this.levelRoot.remove(perk.mesh);
+        this.droppedPerks.splice(i, 1);
+
+        this.activatePerk(perk.perkId, perk.duration);
+        sound.playPickup(3);
+        this.spawnParticleRing(perk.x, perk.y + 0.6, perk.z, perk.color);
+        this.score += 250;
+        this.emitFloatingToast(`⚡ ODBIÓR: ${perk.name}!`, perk.x, perk.y + 1.2, perk.z, 'perk');
+
+        const def = AVAILABLE_PERKS.find((p) => p.id === perk.perkId);
+        const hexColor = `#${perk.color.toString(16).padStart(6, '0')}`;
+        this.callbacks.onPerkDropBanner?.(perk.name, perk.icon, def?.description || 'Aktywowano ulepszenie!', hexColor);
+        this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
+      }
+    }
+  }
+
+  private emitFloatingToast(
+    text: string,
+    worldX: number,
+    worldY: number,
+    worldZ: number,
+    type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' = 'points'
+  ) {
     this.callbacks.onFloatingText?.(text, worldX, worldY, worldZ, type);
   }
 
+
   private buildLevel1() {
-    const floorGeo = new THREE.PlaneGeometry(48, 22);
+    // 1. Expanded Warehouse Floor (72x26)
+    const floorGeo = new THREE.PlaneGeometry(72, 26);
     const floorMat = new THREE.MeshStandardMaterial({
       map: getFloorTexture(),
       roughness: 0.28,
@@ -664,51 +962,64 @@ export class MaxFlizGameEngine {
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.levelRoot.add(floor);
-    this.platforms.push({ x: 0, y: 0, z: 0, width: 48, height: 0.2, depth: 22, type: 'floor' });
+    this.platforms.push({ x: 0, y: 0, z: 0, width: 72, height: 0.2, depth: 26, type: 'floor' });
 
-    const wallGeo = new THREE.BoxGeometry(48, 7.5, 0.4);
+    // Back Wall with industrial corrugated siding
+    const wallGeo = new THREE.BoxGeometry(72, 9.0, 0.4);
     const wallMat = new THREE.MeshStandardMaterial({ map: getWallTexture(), roughness: 0.7 });
     const backWall = new THREE.Mesh(wallGeo, wallMat);
-    backWall.position.set(0, 3.75, -11);
+    backWall.position.set(0, 4.5, -13);
     this.levelRoot.add(backWall);
 
-    const logo = new THREE.Mesh(
-      new THREE.PlaneGeometry(8.5, 2.5),
-      new THREE.MeshBasicMaterial({ map: getMaxFlizLogoTexture() })
-    );
-    logo.position.set(0, 5.0, -10.78);
-    this.levelRoot.add(logo);
+    // Glowing Neon Showroom & Logistics Overhead Banner
+    const neonSign = createNeonShowroomSign('MAX-FLIZ • SEKTOR LOGISTYKI B4', '#38bdf8');
+    neonSign.position.set(0, 6.2, -12.75);
+    this.levelRoot.add(neonSign);
 
-    [-18, -9, 0, 9, 18].forEach((lx) => {
+    // Volumetric Overhead High-Bay Lamps & Light Beams
+    [-28, -14, 0, 14, 28].forEach((lx) => {
       const lamp = createHighBayLamp();
-      lamp.position.set(lx, 6.2, 0);
+      lamp.position.set(lx, 7.2, 0);
       const beam = createVolumetricLightBeam();
-      beam.position.set(lx, 6.2, 0);
+      beam.position.set(lx, 7.2, 0);
       this.levelRoot.add(lamp, beam);
     });
 
-    [-14, -6, 2, 10, 16].forEach((ax) => {
-      const arrow = createAisleArrow(1.4);
-      arrow.position.set(ax, 0.015, -1.8);
+    // Floor Pedestrian & Navigation Safety Arrows
+    [-24, -16, -8, 0, 8, 16, 24].forEach((ax) => {
+      const arrow = createAisleArrow(1.5);
+      arrow.position.set(ax, 0.015, -2.0);
       this.levelRoot.add(arrow);
     });
 
-    this.playerPos.set(-20, 0.5, 0);
+    // Steam vents along the back wall
+    [-22, 5, 22].forEach((vx) => {
+      const vent = createIndustrialSteamVent();
+      vent.position.set(vx, 0, -12.2);
+      this.levelRoot.add(vent);
+    });
+
+    // Spawn Point
+    this.playerPos.set(-32, 0.5, 0);
     this.playerVel.set(0, 0, 0);
 
+    // Multi-tier Pallet Platforms
     const palletPositions = [
-      { x: -18, z: -2.5, tier: 1 },
-      { x: -15, z: 2.2, tier: 2 },
-      { x: -12, z: -2.0, tier: 1 },
-      { x: -9, z: 2.5, tier: 2 },
-      { x: -6, z: -1.8, tier: 1 },
-      { x: -3, z: 2.2, tier: 2 },
-      { x: 0, z: -2.0, tier: 1 },
-      { x: 3, z: 2.5, tier: 2 },
-      { x: 6, z: -1.8, tier: 1 },
-      { x: 9, z: 2.2, tier: 2 },
-      { x: 12, z: -2.0, tier: 1 },
-      { x: 15, z: 2.5, tier: 2 },
+      { x: -30, z: -2.5, tier: 1 },
+      { x: -26, z: 2.5, tier: 2 },
+      { x: -22, z: -2.5, tier: 1 },
+      { x: -18, z: 2.5, tier: 2 },
+      { x: -14, z: -2.2, tier: 1 },
+      { x: -10, z: 2.5, tier: 2 },
+      { x: -6, z: -2.5, tier: 1 },
+      { x: -2, z: 2.2, tier: 2 },
+      { x: 2, z: -2.5, tier: 1 },
+      { x: 6, z: 2.5, tier: 2 },
+      { x: 10, z: -2.2, tier: 1 },
+      { x: 14, z: 2.5, tier: 2 },
+      { x: 18, z: -2.5, tier: 1 },
+      { x: 22, z: 2.2, tier: 2 },
+      { x: 26, z: -2.5, tier: 1 },
     ];
     palletPositions.forEach((p, idx) => {
       const pallet = createTilePallet(p.tier);
@@ -719,76 +1030,122 @@ export class MaxFlizGameEngine {
       this.addGroutItem(`grout_l1_${idx}`, p.x, h + 0.35, p.z, 50);
     });
 
-    const rack1 = createWarehouseRack(5.5, 3.8, 1.4);
-    rack1.position.set(-11, 0, -7.0);
-    const rack2 = createWarehouseRack(5.5, 3.8, 1.4);
-    rack2.position.set(2, 0, -7.0);
-    const rack3 = createWarehouseRack(5.5, 3.8, 1.4);
-    rack3.position.set(-11, 0, 7.0);
-    this.levelRoot.add(rack1, rack2, rack3);
+    // High Warehouse Racks
+    const rack1 = createWarehouseRack(6.0, 4.2, 1.5);
+    rack1.position.set(-18, 0, -8.0);
+    const rack2 = createWarehouseRack(6.0, 4.2, 1.5);
+    rack2.position.set(0, 0, -8.0);
+    const rack3 = createWarehouseRack(6.0, 4.2, 1.5);
+    rack3.position.set(18, 0, -8.0);
+    const rack4 = createWarehouseRack(6.0, 4.2, 1.5);
+    rack4.position.set(-10, 0, 8.0);
+    const rack5 = createWarehouseRack(6.0, 4.2, 1.5);
+    rack5.position.set(10, 0, 8.0);
+    this.levelRoot.add(rack1, rack2, rack3, rack4, rack5);
 
-    this.platforms.push({ x: -11, y: 1.25, z: -7.0, width: 5.5, height: 0.15, depth: 1.4, type: 'shelf' });
-    this.platforms.push({ x: 2, y: 1.25, z: -7.0, width: 5.5, height: 0.15, depth: 1.4, type: 'shelf' });
-    this.platforms.push({ x: -11, y: 1.25, z: 7.0, width: 5.5, height: 0.15, depth: 1.4, type: 'shelf' });
+    this.platforms.push({ x: -18, y: 1.4, z: -8.0, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
+    this.platforms.push({ x: 0, y: 1.4, z: -8.0, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
+    this.platforms.push({ x: 18, y: 1.4, z: -8.0, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
+    this.platforms.push({ x: -10, y: 1.4, z: 8.0, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
+    this.platforms.push({ x: 10, y: 1.4, z: 8.0, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
 
-    this.addVipItem('vip_tile1', -11, 1.55, -7.0, 'Gres Hiszpański 120x60 Calacatta');
-    this.addVipItem('vip_tile2', 2, 1.55, -7.0, 'Mozaika Złota Gres Max-Fliz');
-    this.addVipItem('vip_tile3', 6, 1.25, 2.2, 'Klej do Wielkiego Formatu Pro');
+    // Elevated Steel Catwalk Connecting Racks at y=3.4
+    const catwalk1 = createHighBayCatwalk(12.0, 1.6);
+    catwalk1.position.set(-9, 3.4, -8.0);
+    const catwalk2 = createHighBayCatwalk(12.0, 1.6);
+    catwalk2.position.set(9, 3.4, -8.0);
+    this.levelRoot.add(catwalk1, catwalk2);
+    this.platforms.push({ x: -9, y: 3.4, z: -8.0, width: 12.0, height: 0.15, depth: 1.6, type: 'scaffold' });
+    this.platforms.push({ x: 9, y: 3.4, z: -8.0, width: 12.0, height: 0.15, depth: 1.6, type: 'scaffold' });
 
-    this.addEspressoItem('esp_1', -11, 2.6, -7.0);
-    this.addMagnetItem('mag_1', 2, 2.6, -7.0);
-    this.addGoldenCutterItem('cutter_1', -11, 2.6, 7.0);
+    // VIP Collectibles
+    this.addVipItem('vip_tile1', -18, 1.8, -8.0, 'Gres Hiszpański Calacatta Gold 120x60');
+    this.addVipItem('vip_tile2', 0, 1.8, -8.0, 'Złota Mozaika Ceramiczna Max-Fliz');
+    this.addVipItem('vip_tile3', 18, 1.8, -8.0, 'Klej do Wielkiego Formatu Pro Flex');
+    this.addVipItem('vip_tile4', -9, 3.8, -8.0, 'Specyfikacja Projektowa dla Hotelu 5*');
 
-    this.addEasterEgg('egg_coffee_1', -16, 0.05, -7.5, 'Ukryty Kącik Kawowy Zdzicha', 'coffee', 400);
-    this.addEasterEgg('egg_wz_1', 8, 1.75, 7.0, 'Zaginiona WZ-tka z 2012 Roku', 'folder', 450);
+    // Pre-placed World-Drop Perks on Elevated Platforms!
+    this.spawnDroppedPerk(-9, 3.8, -8.0, 'vibram_boots');
+    this.spawnDroppedPerk(9, 3.8, -8.0, 'hardhat');
+    this.spawnDroppedPerk(-10, 1.8, 8.0, 'order_magnet');
+    this.spawnDroppedPerk(14, 0.5, 3.5, 'espresso_boost');
 
-    this.addForkliftHazard('forklift_1', -16, 12, 0, 4.2, 0xf59e0b);
+    // Bonus Collectibles & Espresso
+    this.addEspressoItem('esp_l1_1', -20, 0.4, 3.5);
+    this.addEspressoItem('esp_l1_2', 8, 0.4, -3.5);
+    this.addGoldenCutterItem('cutter_l1_1', 14, 1.8, -8.0);
+    this.addMagnetItem('mag_l1_1', -6, 1.0, 2.5);
 
-    this.addCustomerEnemy('cust_1', -9, -1, 2.2, 'Klient z Reklamacją na Fugi');
-    this.addCustomerEnemy('cust_2', 3, 11, -2.5, 'Pan Janusz (Gdzie moja faktura?!)');
-    this.addArchitectEnemy('arch_1', -4, 4, -2.2, 'Architekt z próbnikami beżu');
-    this.addAgvRobotEnemy('agv_1', 0, 9, 2.6, 'Autonomiczny AGV ze zlewami');
+    // Easter Eggs
+    this.addEasterEgg('egg_coffee_1', -24, 0.05, -8.5, 'Ukryty Kącik Kawowy Zdzicha', 'coffee', 400);
+    this.addEasterEgg('egg_wz_1', 12, 1.85, 8.0, 'Zaginiona WZ-tka z 2012 Roku', 'folder', 450);
 
+    // Forklift Hazard
+    this.addForkliftHazard('forklift_1', -24, 20, 0, 4.4, 0xf59e0b);
+
+    // Expanded Dense Roster of Enemies on Level 1
+    this.addCustomerEnemy('cust_1', -16, -6, 6, 'Klient z Reklamacją na Fugi');
+    this.addCustomerEnemy('cust_2', 4, -6, 6, 'Pan Janusz (Gdzie moja faktura?!)');
+    this.addCustomerEnemy('cust_3', -8, -6, 6, 'Awanturujący się Klient po Rabaty');
+    this.addAgvRobotEnemy('agv_1', -4, 12, 2.8, 'Autonomiczny AGV ze zlewami');
+    this.addAgvRobotEnemy('agv_2', 8, -12, -2.8, 'Szalony Sztaplar AGV B4');
+    this.addHandlowiecEnemy('handl_1', -12, -5, 5, 'Handlowiec z Ofertą na Rabat 3%');
+    this.addHandlowiecEnemy('handl_2', 12, -5, 5, 'Przedstawiciel z Próbkami Marmuru');
+    this.addMonterEnemy('monter_1', 10, -6, 6, 'Monter z Młotkiem Gumowym');
+    this.addInspectorEnemy('insp_1', -2, -5, 5, 'Inspektor BHP z Listą Zastrzeżeń');
+    this.addPiorunDronEnemy('dron_1', -18, 16, 0, 2.2, 'Piorun Dron Skaner Kodów B4');
+    this.addPiorunDronEnemy('dron_2', -10, 22, -4, 2.4, 'Dron Inspekcyjny Sektora B');
+
+    // Finish Loading Gate & Delivery Van
     const finishGate = createFinishGate();
-    finishGate.position.set(19, 0, 0);
+    finishGate.position.set(30, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
-    van.position.set(20.5, 0, 0);
+    van.position.set(31.8, 0, 0);
     van.rotation.y = -Math.PI / 2;
     this.levelRoot.add(van);
-    this.platforms.push({ x: 20.5, y: 0.8, z: 0, width: 3.2, height: 1.6, depth: 2.4, type: 'finish_truck' });
+    this.platforms.push({ x: 31.8, y: 0.8, z: 0, width: 3.5, height: 1.6, depth: 2.6, type: 'finish_truck' });
   }
 
   private buildLevel2() {
-    const floorGeo = new THREE.PlaneGeometry(56, 26);
+    // 1. Expanded Showroom Floor (80x28)
+    const floorGeo = new THREE.PlaneGeometry(80, 28);
     const floorMat = new THREE.MeshStandardMaterial({
       map: getFloorTexture(),
       roughness: 0.15,
-      metalness: 0.2,
+      metalness: 0.25,
       color: 0x0f2b46,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.levelRoot.add(floor);
-    this.platforms.push({ x: 0, y: 0, z: 0, width: 56, height: 0.2, depth: 26, type: 'floor' });
+    this.platforms.push({ x: 0, y: 0, z: 0, width: 80, height: 0.2, depth: 28, type: 'floor' });
 
-    const wallGeo = new THREE.BoxGeometry(56, 8, 0.4);
-    const wallMat = new THREE.MeshStandardMaterial({ map: getWallTexture(), roughness: 0.5, color: 0x1e3a5f });
+    // Showroom Dark Luxury Wall
+    const wallGeo = new THREE.BoxGeometry(80, 9.5, 0.4);
+    const wallMat = new THREE.MeshStandardMaterial({ map: getWallTexture(), roughness: 0.4, color: 0x1e3a5f });
     const backWall = new THREE.Mesh(wallGeo, wallMat);
-    backWall.position.set(0, 4, -13);
+    backWall.position.set(0, 4.75, -14);
     this.levelRoot.add(backWall);
 
-    this.playerPos.set(-24, 0.5, 0);
+    // Showroom Neon Sign
+    const neonSign = createNeonShowroomSign('MAX-FLIZ SHOWROOM • STREFA WANNY & SPA', '#ec4899');
+    neonSign.position.set(0, 6.8, -13.75);
+    this.levelRoot.add(neonSign);
+
+    this.playerPos.set(-35, 0.5, 0);
     this.playerVel.set(0, 0, 0);
 
+    // Super Bouncy Bathtubs
     const tubPositions = [
-      { x: -18, z: -4 },
-      { x: -9, z: 5 },
-      { x: 0, z: -5 },
-      { x: 9, z: 5 },
-      { x: 18, z: -4 },
+      { x: -28, z: -5 },
+      { x: -18, z: 5 },
+      { x: -8, z: -5 },
+      { x: 2, z: 5 },
+      { x: 12, z: -5 },
+      { x: 22, z: 5 },
     ];
     tubPositions.forEach((tp, idx) => {
       const tub = createBathtubModel();
@@ -802,107 +1159,178 @@ export class MaxFlizGameEngine {
         height: 1.0,
         depth: 1.2,
         type: 'bathtub',
-        bounce: 16.5,
+        bounce: 17.5,
       });
       this.addGroutItem(`grout_l2_${idx}`, tp.x, 1.4, tp.z, 60);
     });
 
+    // Elevated Luxury Catwalks & Onyx Podiums
     const catwalks = [
-      { x: -18, y: 3.2, z: -4, w: 4.5, d: 2.5 },
-      { x: -9, y: 3.2, z: 5, w: 4.5, d: 2.5 },
-      { x: 0, y: 3.2, z: -5, w: 4.5, d: 2.5 },
-      { x: 9, y: 3.2, z: 5, w: 4.5, d: 2.5 },
-      { x: 18, y: 3.2, z: -4, w: 4.5, d: 2.5 },
+      { x: -28, y: 3.5, z: -5, w: 5.0, d: 2.6 },
+      { x: -18, y: 3.5, z: 5, w: 5.0, d: 2.6 },
+      { x: -8, y: 3.5, z: -5, w: 5.0, d: 2.6 },
+      { x: 2, y: 3.5, z: 5, w: 5.0, d: 2.6 },
+      { x: 12, y: 3.5, z: -5, w: 5.0, d: 2.6 },
+      { x: 22, y: 3.5, z: 5, w: 5.0, d: 2.6 },
     ];
     catwalks.forEach((cw, idx) => {
-      const cwGeo = new THREE.BoxGeometry(cw.w, 0.2, cw.d);
-      const cwMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.3, metalness: 0.7 });
-      const mesh = new THREE.Mesh(cwGeo, cwMat);
-      mesh.position.set(cw.x, cw.y, cw.z);
-      this.levelRoot.add(mesh);
+      const cwGroup = createHighBayCatwalk(cw.w, cw.d);
+      cwGroup.position.set(cw.x, cw.y, cw.z);
+      this.levelRoot.add(cwGroup);
       this.platforms.push({ x: cw.x, y: cw.y, z: cw.z, width: cw.w, height: 0.2, depth: cw.d, type: 'shelf' });
       this.addGroutItem(`grout_cw_${idx}`, cw.x, cw.y + 0.4, cw.z, 80);
     });
 
-    this.addVipItem('vip_bath1', -18, 3.6, -4, 'Złota Bateria Wolnostojąca Villeroy');
-    this.addVipItem('vip_bath2', 0, 3.6, -5, 'Wanna Wolnostojąca z Hydromasażem Marmur');
-    this.addVipItem('vip_bath3', 18, 3.6, -4, 'Umywalka Nablatowa z Prawdziwego Onyksu');
+    // VIP Showroom Items
+    this.addVipItem('vip_bath1', -28, 3.9, -5, 'Złota Bateria Wolnostojąca Villeroy & Boch');
+    this.addVipItem('vip_bath2', -8, 3.9, -5, 'Wanna Wolnostojąca z Hydromasażem Marmur Carrara');
+    this.addVipItem('vip_bath3', 12, 3.9, -5, 'Umywalka Nablatowa z Naturalnego Onyksu');
+    this.addVipItem('vip_bath4', 22, 3.9, 5, 'Kolekcja Armatury Złotej z Mediolanu');
 
-    this.addEspressoItem('esp_l2_1', -9, 3.6, 5);
-    this.addGoldenCutterItem('cutter_l2_1', 9, 3.6, 5);
+    // Dropped Perks & Collectibles in World
+    this.spawnDroppedPerk(-18, 3.9, 5, 'espresso_boost');
+    this.spawnDroppedPerk(2, 3.9, 5, 'order_magnet');
+    this.spawnDroppedPerk(22, 0.5, -6, 'hardhat');
+    this.spawnDroppedPerk(-28, 3.9, -5, 'vibram_boots');
 
-    this.addEasterEgg('egg_throne_1', 22, 0.05, -9, 'Złoty Tron Kierownika Regionu', 'throne', 600);
+    this.addEspressoItem('esp_l2_1', -22, 0.4, -2.0);
+    this.addEspressoItem('esp_l2_2', 18, 0.4, 2.0);
+    this.addGoldenCutterItem('cutter_l2_1', -18, 3.9, 5);
+    this.addMagnetItem('mag_l2_1', 12, 3.9, -5);
 
-    this.addCustomerEnemy('cust_l2_1', -12, -8, 8, 'Zdezorientowany Klient Szukający Syfonu');
-    this.addArchitectEnemy('arch_l2_1', -2, 6, 2, 'Główny Projektant Wnętrz z Warszawy');
-    this.addArchitectEnemy('arch_l2_2', 12, 18, -2, 'Krytyk Mieszanek Tynkarskich');
+    // Easter Egg
+    this.addEasterEgg('egg_throne_1', 30, 0.05, -9, 'Złoty Tron Prezesa z 24k Złotem', 'throne', 600);
 
+    // Dense Enemies in Showroom
+    this.addCustomerEnemy('cust_l2_1', -22, -6, 6, 'Zdezorientowany Klient Szukający Syfonu');
+    this.addCustomerEnemy('cust_l2_2', 10, -6, 6, 'Klient z Projektantką Wnętrz');
+    this.addArchitectEnemy('arch_l2_1', -12, -6, 6, 'Główny Projektant Wnętrz z Warszawy');
+    this.addArchitectEnemy('arch_l2_2', 6, -6, 6, 'Krytyk Mieszanek Tynkarskich i Beżu');
+    this.addArchitectEnemy('arch_l2_3', -20, -6, 6, 'Stylista Luksusowych Łazienek');
+    this.addInspectorEnemy('insp_l2_1', -4, -6, 6, 'Inspektor BHP z PIP-u');
+    this.addInspectorEnemy('insp_l2_2', 16, -6, 6, 'Kontroler Jakości Armatury');
+    this.addHandlowiecEnemy('handl_l2_1', 14, -6, 6, 'Kierownik Sprzedaży Salonu');
+    this.addMonterEnemy('monter_l2_1', -14, -6, 6, 'Hydraulik z Kluczem Nastawnym');
+    this.addPiorunDronEnemy('dron_l2_1', -20, 20, 0, 2.4, 'Dron Multimedialny Showroomu');
+    this.addPiorunDronEnemy('dron_l2_2', -15, 25, 4, 2.5, 'Skrzydlaty Skaner Ekspozycji');
+
+    // Finish Loading Gate
     const finishGate = createFinishGate();
-    finishGate.position.set(24, 0, 0);
+    finishGate.position.set(34, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
-    van.position.set(25.5, 0, 0);
+    van.position.set(35.8, 0, 0);
     van.rotation.y = -Math.PI / 2;
     this.levelRoot.add(van);
-    this.platforms.push({ x: 25.5, y: 0.8, z: 0, width: 3.2, height: 1.6, depth: 2.4, type: 'finish_truck' });
+    this.platforms.push({ x: 35.8, y: 0.8, z: 0, width: 3.5, height: 1.6, depth: 2.6, type: 'finish_truck' });
   }
 
   private buildLevel3() {
-    const floorGeo = new THREE.PlaneGeometry(64, 28);
+    // 1. Massive Final Arena: Baza Przeładunkowa & Starcie z Walczakiem (90x32)
+    const floorGeo = new THREE.PlaneGeometry(90, 32);
     const floorMat = new THREE.MeshStandardMaterial({
       map: getFloorTexture(),
       roughness: 0.35,
-      metalness: 0.15,
+      metalness: 0.2,
       color: 0x111827,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.levelRoot.add(floor);
-    this.platforms.push({ x: 0, y: 0, z: 0, width: 64, height: 0.2, depth: 28, type: 'floor' });
+    this.platforms.push({ x: 0, y: 0, z: 0, width: 90, height: 0.2, depth: 32, type: 'floor' });
 
-    const wallGeo = new THREE.BoxGeometry(64, 9, 0.4);
+    // Industrial Dark Reinforced Back Wall
+    const wallGeo = new THREE.BoxGeometry(90, 10.5, 0.4);
     const wallMat = new THREE.MeshStandardMaterial({ map: getWallTexture(), roughness: 0.8, color: 0x0f172a });
     const backWall = new THREE.Mesh(wallGeo, wallMat);
-    backWall.position.set(0, 4.5, -14);
+    backWall.position.set(0, 5.25, -16);
     this.levelRoot.add(backWall);
 
-    this.playerPos.set(-28, 0.5, 0);
+    // Ominous Warning Neon Sign
+    const neonSign = createNeonShowroomSign('STREFA ZAMKNIĘTA • GŁÓWNY AUDYT WALCZAKA', '#ef4444');
+    neonSign.position.set(0, 7.5, -15.75);
+    this.levelRoot.add(neonSign);
+
+    // Player Spawn
+    this.playerPos.set(-40, 0.5, 0);
     this.playerVel.set(0, 0, 0);
 
-    [-20, -10, 0, 10, 20].forEach((rx, idx) => {
-      const rack = createWarehouseRack(6.0, 4.2, 1.5);
-      rack.position.set(rx, 0, -8);
+    // Massive Storage Racks along both sides
+    [-30, -18, -6, 6, 18, 30].forEach((rx, idx) => {
+      const rack = createWarehouseRack(6.5, 4.5, 1.6);
+      rack.position.set(rx, 0, -10);
       this.levelRoot.add(rack);
-      this.platforms.push({ x: rx, y: 1.4, z: -8, width: 6.0, height: 0.15, depth: 1.5, type: 'shelf' });
-      this.addGroutItem(`grout_l3_${idx}`, rx, 1.8, -8, 70);
+      this.platforms.push({ x: rx, y: 1.5, z: -10, width: 6.5, height: 0.15, depth: 1.6, type: 'shelf' });
+      this.addGroutItem(`grout_l3_${idx}`, rx, 1.9, -10, 80);
     });
 
-    this.addVipItem('vip_l3_1', -20, 1.8, -8, 'Protokół Odbioru Magazynu Główny');
-    this.addVipItem('vip_l3_2', 0, 1.8, -8, 'Faktura Korygująca na 2.5 MLN PLN');
-    this.addVipItem('vip_l3_3', 20, 1.8, -8, 'Złota Zgrzewarka do Folii Max-Fliz');
+    // Elevated Dual Catwalks connecting the battleground
+    const cwL = createHighBayCatwalk(16.0, 1.8);
+    cwL.position.set(-18, 3.6, -10);
+    const cwR = createHighBayCatwalk(16.0, 1.8);
+    cwR.position.set(18, 3.6, -10);
+    this.levelRoot.add(cwL, cwR);
+    this.platforms.push({ x: -18, y: 3.6, z: -10, width: 16.0, height: 0.15, depth: 1.8, type: 'scaffold' });
+    this.platforms.push({ x: 18, y: 3.6, z: -10, width: 16.0, height: 0.15, depth: 1.8, type: 'scaffold' });
 
-    this.addMagnetItem('mag_l3_1', -10, 1.8, -8);
-    this.addEspressoItem('esp_l3_1', 10, 1.8, -8);
+    // Strategic Steam Vents
+    [-26, 0, 26].forEach((vx) => {
+      const vent = createIndustrialSteamVent();
+      vent.position.set(vx, 0, -14.5);
+      this.levelRoot.add(vent);
+    });
 
-    this.addForkliftHazard('fork_l3_1', -22, 18, -2, 5.0, 0xef4444);
-    this.addForkliftHazard('fork_l3_2', 18, -22, 4, 5.5, 0x3b82f6);
+    // VIP Documents & Treasures
+    this.addVipItem('vip_l3_1', -30, 2.0, -10, 'Główny Protokół Odbioru Magazynu z 2026 r.');
+    this.addVipItem('vip_l3_2', 0, 2.0, -10, 'Faktura Korygująca Walczaka na 2.5 MLN PLN');
+    this.addVipItem('vip_l3_3', 30, 2.0, -10, 'Złota Zgrzewarka Foliowa Max-Fliz 24k');
+    this.addVipItem('vip_l3_4', -18, 4.0, -10, 'Pancerne Zamówienie dla Rezydencji Prezesa');
 
-    this.addAgvRobotEnemy('agv_l3_1', -18, -6, 2, 'Roboraptor Paletowy V1');
-    this.addArchitectEnemy('arch_l3_1', 6, 18, -2, 'Niezadowolony Generalny Wykonawca');
+    // Strategic In-World Perk Crates before boss confrontation!
+    this.spawnDroppedPerk(-24, 0.5, 4, 'hardhat');
+    this.spawnDroppedPerk(-18, 4.0, -10, 'espresso_boost');
+    this.spawnDroppedPerk(18, 4.0, -10, 'vibram_boots');
+    this.spawnDroppedPerk(0, 2.0, -10, 'order_magnet');
+    this.spawnDroppedPerk(-10, 0.5, -4, 'order_magnet');
+    this.spawnDroppedPerk(10, 0.5, 4, 'hardhat');
 
-    this.addWalczakBossEnemy('boss_walczak', 18, 0);
+    this.addEspressoItem('esp_l3_1', -28, 0.4, -2.0);
+    this.addEspressoItem('esp_l3_2', 20, 0.4, 2.0);
+    this.addGoldenCutterItem('cutter_l3_1', -18, 4.0, -10);
+    this.addMagnetItem('mag_l3_1', 18, 4.0, -10);
 
+    // Forklift Hazards Criss-Crossing the arena
+    this.addForkliftHazard('fork_l3_1', -32, 28, -3, 5.2, 0xef4444);
+    this.addForkliftHazard('fork_l3_2', 28, -32, 5, 5.6, 0x3b82f6);
+
+    // Massive Enemy Vanguard (Simultaneous Action!)
+    this.addEliteGuardEnemy('guard_1', -14, -8, 8, 'Ochroniarz Walczaka z Tarczą BHP');
+    this.addEliteGuardEnemy('guard_2', 10, -8, 8, 'Inspektor Taktyczny Walczaka');
+    this.addEliteGuardEnemy('guard_3', -2, -8, 8, 'Kapitan Straży Walczaka');
+    this.addCustomerEnemy('cust_l3_1', -22, -8, 8, 'Niezadowolony Nabywca Próbek');
+    this.addArchitectEnemy('arch_l3_1', -16, -8, 8, 'Militarny Architekt Projektu');
+    this.addMonterEnemy('monter_l3_1', -8, -8, 8, 'Brygadzista Budowlany Walczaka');
+    this.addMonterEnemy('monter_l3_2', 14, -8, 8, 'Majster ze Szlifierką Kątową');
+    this.addHandlowiecEnemy('handl_l3_1', 2, -8, 8, 'Szalony Negocjator Ofertowy');
+    this.addInspectorEnemy('insp_l3_1', -20, -8, 8, 'Główny Audytor Zdzichu');
+    this.addPiorunDronEnemy('dron_l3_1', -25, 25, 0, 2.6, 'Dron Bojowy Walczaka V3');
+    this.addPiorunDronEnemy('dron_l3_2', -20, 28, -4, 2.8, 'Dron Obserwacyjny Areny B4');
+
+    // FINAL BOSS: Były Kierownik Walczak
+    this.addWalczakBossEnemy('boss_walczak', 26, 0);
+
+    // Final Victory Gate
     const finishGate = createFinishGate();
-    finishGate.position.set(28, 0, 0);
+    finishGate.position.set(40, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
-    van.position.set(29.5, 0, 0);
+    van.position.set(41.8, 0, 0);
     van.rotation.y = -Math.PI / 2;
     this.levelRoot.add(van);
-    this.platforms.push({ x: 29.5, y: 0.8, z: 0, width: 3.2, height: 1.6, depth: 2.4, type: 'finish_truck' });
+    this.platforms.push({ x: 41.8, y: 0.8, z: 0, width: 3.5, height: 1.6, depth: 2.6, type: 'finish_truck' });
   }
 
   public update(dt: number) {
@@ -922,11 +1350,21 @@ export class MaxFlizGameEngine {
         }
       }
 
+      if (this.comboTimer > 0) {
+        this.comboTimer -= dt;
+        if (this.comboTimer <= 0) {
+          this.comboStreak = 0;
+        }
+      }
+
       this.updatePlayerMovement(dt);
       this.updateCollectibles(dt);
+      this.updateDroppedPerks(dt);
       this.updateHazards(dt);
       this.updateEnemies(dt);
       this.updateProjectiles(dt);
+      this.updateBimberMolotovs(dt);
+      this.updateBimberFirePuddles(dt);
       this.updateSpecialEffects(dt);
       this.updateParticles(dt);
     }
@@ -1232,7 +1670,7 @@ export class MaxFlizGameEngine {
       if (e.state === 'defeated' || !e.mesh) return;
 
       e.walkCycle += dt * 8;
-      if (e.legL && e.legR) {
+      if (e.legL && e.legR && e.type !== 'piorun_dron') {
         e.legL.rotation.x = Math.sin(e.walkCycle) * 0.5;
         e.legR.rotation.x = -Math.sin(e.walkCycle) * 0.5;
       }
@@ -1243,21 +1681,21 @@ export class MaxFlizGameEngine {
         return;
       }
 
-      if (e.type === 'customer' || e.type === 'architect' || e.type === 'agv_robot') {
-        e.z += e.speed * e.dir * dt;
-        if (e.dir > 0 && e.z >= e.endX) {
-          e.dir = -1;
-          e.mesh.rotation.y = Math.PI;
-        } else if (e.dir < 0 && e.z <= e.startX) {
-          e.dir = 1;
-          e.mesh.rotation.y = 0;
-        }
-        e.mesh.position.set(e.x, e.y, e.z);
+      // Movement & behavior per enemy type
+      if (e.type === 'piorun_dron') {
+        // High-speed rotor spin
+        if (e.legL) e.legL.rotation.y += dt * 30;
+        if (e.legR) e.legR.rotation.y += dt * 30;
+        if (e.armL) e.armL.rotation.y += dt * 30;
+        if (e.armR) e.armR.rotation.y += dt * 30;
 
-        const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
-        if (dist < 1.1 && Math.abs(e.y - this.playerPos.y) < 1.0) {
-          this.takeDamage(`Potrącił Cię: ${e.name}!`);
+        e.x += e.speed * e.dir * dt;
+        if (e.dir > 0 && e.x >= e.endX) {
+          e.dir = -1;
+        } else if (e.dir < 0 && e.x <= e.startX) {
+          e.dir = 1;
         }
+        e.mesh.position.set(e.x, e.y + Math.sin(performance.now() * 0.005) * 0.12, e.z);
       } else if (e.type === 'walczak') {
         e.x += e.speed * e.dir * dt;
         if (e.dir > 0 && e.x >= e.endX) {
@@ -1272,17 +1710,80 @@ export class MaxFlizGameEngine {
         if (e.specialActionTimer !== undefined) {
           e.specialActionTimer -= dt;
           if (e.specialActionTimer <= 0) {
-            e.specialActionTimer = 3.5;
+            e.specialActionTimer = 3.2;
             this.spawnPenaltyNotice(e.x, e.y + 1.2, e.z);
           }
         }
-
-        const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
-        if (dist < 1.6 && Math.abs(e.y - this.playerPos.y) < 1.2) {
-          this.takeDamage('Były Kierownik Walczak wręczył Ci naganę z wpisem do akt!');
-        }
-
         this.callbacks.onBossUpdate?.(e.name, e.hp, e.maxHp, true);
+      } else {
+        // Regular patrolling enemies along Z or X
+        e.z += e.speed * e.dir * dt;
+        if (e.dir > 0 && e.z >= e.endX) {
+          e.dir = -1;
+          e.mesh.rotation.y = Math.PI;
+        } else if (e.dir < 0 && e.z <= e.startX) {
+          e.dir = 1;
+          e.mesh.rotation.y = 0;
+        }
+        e.mesh.position.set(e.x, e.y, e.z);
+
+        // Special attacks
+        if (e.type === 'handlowiec' && e.specialActionTimer !== undefined) {
+          e.specialActionTimer -= dt;
+          const distToPlayer = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
+          if (e.specialActionTimer <= 0 && distToPlayer < 9.0) {
+            e.specialActionTimer = 3.2;
+            this.spawnPenaltyNotice(e.x, e.y + 0.8, e.z);
+            this.emitFloatingToast('📑 OFERTA RABATOWA!', e.x, e.y + 1.2, e.z, 'damage');
+          }
+        } else if (e.type === 'inspector' && e.specialActionTimer !== undefined) {
+          e.specialActionTimer -= dt;
+          const distToPlayer = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
+          if (e.specialActionTimer <= 0 && distToPlayer < 6.5) {
+            e.specialActionTimer = 3.0;
+            sound.playWhistle();
+            this.emitFloatingToast('🚨 KONTROLA BHP!', e.x, e.y + 1.2, e.z, 'damage');
+          }
+        }
+      }
+
+      // Check collision with player
+      const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
+      const hitRadius = e.type === 'walczak' ? 1.5 : e.type === 'elite_walczak_guard' ? 1.3 : 1.1;
+
+      if (dist < hitRadius) {
+        // 1. STOMP MECHANIC (Naskok z góry)
+        if (this.playerVel.y < -0.8 && this.playerPos.y > e.y + 0.35) {
+          const bounceForce = e.type === 'agv_robot' ? this.charDef.jumpForce * 1.3 : this.charDef.jumpForce * 0.95;
+          this.playerVel.y = bounceForce;
+          sound.playBounce();
+          this.cameraShake = 0.35;
+          this.spawnParticleRing(e.x, e.y + 0.8, e.z, 0x38bdf8);
+
+          e.hp -= 2;
+          this.emitFloatingToast('💥 STOMP! +150', e.x, e.y + 1.2, e.z, 'points');
+          this.emitFloatingToast('-2 HP', e.x, e.y + 0.7, e.z, 'damage');
+
+          if (e.hp <= 0) {
+            this.defeatEnemy(e, 260, true);
+          } else {
+            e.stunTimer = 1.0;
+            e.state = 'stunned';
+          }
+        } else if (Math.abs(e.y - this.playerPos.y) < 1.1) {
+          // Horizontal Contact
+          if (this.marcinReclamationTimer > 0) {
+            e.stunTimer = 2.5;
+            e.state = 'stunned';
+            this.emitFloatingToast('🛡️ AUDYT BHP!', e.x, e.y + 1, e.z, 'perk');
+          } else if (this.grzesiekCrushTimer > 0) {
+            e.hp -= 3;
+            this.emitFloatingToast('-3 HP ŚCISK!', e.x, e.y + 1, e.z, 'damage');
+            if (e.hp <= 0) this.defeatEnemy(e, 280, true);
+          } else {
+            this.takeDamage(`Zaatakował Cię: ${e.name}!`);
+          }
+        }
       }
     });
   }
@@ -1306,18 +1807,28 @@ export class MaxFlizGameEngine {
       this.enemies.forEach((e) => {
         if (e.state === 'defeated') return;
         const dist = Math.hypot(p.mesh.position.x - e.x, p.mesh.position.z - e.z);
-        if (dist < 1.2 && Math.abs(p.mesh.position.y - e.y) < 1.2) {
+        if (dist < 1.25 && Math.abs(p.mesh.position.y - e.y) < 1.2) {
           hit = true;
-          e.hp--;
-          sound.playSmack();
-          this.cameraShake = 0.25;
-          this.spawnParticleRing(e.x, e.y + 0.8, e.z, 0xf59e0b);
 
-          if (e.hp <= 0) {
-            this.defeatEnemy(e, 250, true);
+          // Check if guard has active shield
+          if (e.shieldActive && this.charDef.id !== 'grzesiek') {
+            sound.playShieldBreak();
+            this.emitFloatingToast('🛡️ BLOK TARCZY!', e.x, e.y + 1, e.z, 'damage');
+            e.shieldActive = false; // Shield breaks after 1 hit!
           } else {
-            e.stunTimer = 0.6;
-            e.state = 'stunned';
+            const dmg = this.charDef.id === 'dawid' ? 2 : 1;
+            e.hp -= dmg;
+            sound.playSmack();
+            this.cameraShake = 0.25;
+            this.spawnParticleRing(e.x, e.y + 0.8, e.z, 0xf59e0b);
+            this.emitFloatingToast(`-${dmg} HP`, e.x, e.y + 0.8, e.z, 'damage');
+
+            if (e.hp <= 0) {
+              this.defeatEnemy(e, 250, true);
+            } else {
+              e.stunTimer = 0.6;
+              e.state = 'stunned';
+            }
           }
         }
       });
@@ -1566,17 +2077,20 @@ export class MaxFlizGameEngine {
     if (this.currentCharacterId === 'marcin') {
       this.marcinReclamationTimer = 8;
       this.invulnerableTimer = Math.max(this.invulnerableTimer, 8);
-      this.sayQuote('WYJAZD NA REKLAMACJE! Kierownik przejmuje strefę i zamyka sprawę bez zbędnych pytań!');
+      this.hp = Math.min(this.maxHp, this.hp + 1);
+      this.callbacks.onHpUpdate(this.hp, this.maxHp);
+      this.sayQuote('WYJAZD NA REKLAMACJE! Zamykam tę sprawę pieczęcią – 8 sekund całkowitej nietykalności i +1 Kawa!');
       sound.playReclamation();
       this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, 0xcbd5e1);
-      const radius = 7.0;
+      const radius = 8.5;
       this.enemies.forEach((e) => {
         if (e.state === 'defeated') return;
         const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
         if (dist < radius) {
-          e.stunTimer = 4.0;
+          e.stunTimer = 5.0;
           e.state = 'stunned';
           e.hp = Math.max(0, e.hp - 1);
+          this.emitFloatingToast('-1 HP Pieczęć', e.x, e.y + 0.8, e.z, 'damage');
           if (e.hp <= 0) {
             this.defeatEnemy(e, 220, false);
           }
@@ -1598,24 +2112,317 @@ export class MaxFlizGameEngine {
         const dz = e.z - this.playerPos.z;
         const dist = Math.hypot(dx, dz);
         const dirDot = (dx * forward.x + dz * forward.z) / Math.max(1, dist);
-        if (dist < 4.6 && dirDot > -0.2) {
-          e.hp -= 2;
-          e.stunTimer = 1.2;
+        if (dist < 5.2 && dirDot > -0.3) {
+          e.hp -= 3;
+          e.stunTimer = 1.6;
           e.state = 'stunned';
-          this.cameraShake = 0.55;
+          this.cameraShake = 0.65;
           this.spawnParticleRing(e.x, e.y + 0.6, e.z, 0x86efac);
+          this.emitFloatingToast('-3 HP ŚCISK!', e.x, e.y + 0.8, e.z, 'damage');
           if (e.hp <= 0) {
-            this.defeatEnemy(e, 280, false);
+            this.defeatEnemy(e, 300, false);
           }
         }
       });
     } else if (this.currentCharacterId === 'dawid') {
       this.activatePerk('hardhat', 15);
+      this.sayQuote('JA WIEM LEPIEJ! Gres Calacatta 120x280 leci pod kątem 45 stopni!');
+      sound.playAttackWhoosh();
+      const angles = [-0.35, 0, 0.35];
+      angles.forEach((offsetAngle) => {
+        const rot = this.playerRot + offsetAngle;
+        const forward = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));
+        const tileGeo = new THREE.BoxGeometry(0.7, 0.1, 0.45);
+        const tileMat = new THREE.MeshStandardMaterial({
+          color: 0xf8fafc,
+          emissive: 0xd97706,
+          emissiveIntensity: 0.6,
+          metalness: 0.8,
+          roughness: 0.2,
+        });
+        const tile = new THREE.Mesh(tileGeo, tileMat);
+        tile.position.set(this.playerPos.x, this.playerPos.y + 0.6, this.playerPos.z).addScaledVector(forward, 0.6);
+        this.levelRoot.add(tile);
+        this.projectiles.push({
+          mesh: tile,
+          vel: forward.multiplyScalar(16.0),
+          life: 1.2,
+        });
+      });
+      this.emitFloatingToast('🧱 GRESOWY DESZCZ!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'perk');
     } else if (this.currentCharacterId === 'mateusz') {
-      this.hp = Math.min(this.maxHp, this.hp + 1);
+      this.hp = this.maxHp;
       this.callbacks.onHpUpdate(this.hp, this.maxHp);
+      this.activatePerk('espresso_boost', 14);
+      this.activatePerk('vibram_boots', 14);
+      this.sayQuote('POTRÓJNE ESPRESSO 19 BARÓW! Maksymalny showroomowy flow i pełna regeneracja!');
+      sound.playPickup(3);
+      this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.8, this.playerPos.z, 0xec4899);
+      this.emitFloatingToast('☕ PEŁNE ZDROWIE + SUPER SPRINT!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'perk');
     } else if (this.currentCharacterId === 'piotr') {
-      this.activatePerk('order_magnet', 12);
+      this.sayQuote('FLASZKA ZE SKARBCZYKA! 70% bimbru zza regału B4 – z drogi, bo będzie ogień!');
+      this.throwBimberMolotov();
+    }
+  }
+
+  private throwBimberMolotov() {
+    sound.playMolotovThrow();
+    this.attackSwingTimer = 0.35;
+    if (this.rightArm) {
+      this.rightArm.rotation.x = -2.2;
+    }
+
+    const forward = new THREE.Vector3(Math.sin(this.playerRot), 0, Math.cos(this.playerRot));
+    const molotovData = createBimberBottleMolotov();
+    const startPos = new THREE.Vector3(
+      this.playerPos.x + forward.x * 0.7,
+      this.playerPos.y + 1.1,
+      this.playerPos.z + forward.z * 0.7
+    );
+    molotovData.group.position.copy(startPos);
+    this.levelRoot.add(molotovData.group);
+
+    // Initial forward velocity + high arc
+    const throwVel = forward.clone().multiplyScalar(13.5);
+    throwVel.y = 5.8;
+
+    this.bimberMolotovs.push({
+      mesh: molotovData.group,
+      pos: startPos,
+      vel: throwVel,
+      spin: new THREE.Vector3(
+        8.0 + Math.random() * 4.0,
+        3.0 + Math.random() * 2.0,
+        2.0 + Math.random() * 2.0
+      ),
+      life: 2.8,
+      flameLight: molotovData.flameLight,
+      flameMesh: molotovData.flameMesh,
+    });
+
+    this.emitFloatingToast('🍾 KOKTAJL MOŁOTOWA Z BIMBREM!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'combo');
+  }
+
+  private updateBimberMolotovs(dt: number) {
+    for (let i = this.bimberMolotovs.length - 1; i >= 0; i--) {
+      const b = this.bimberMolotovs[i];
+      b.life -= dt;
+
+      // Gravity pulls it down
+      b.vel.y -= 17.0 * dt;
+      b.pos.addScaledVector(b.vel, dt);
+
+      // Tumbling spin in flight
+      b.mesh.rotation.x += b.spin.x * dt;
+      b.mesh.rotation.y += b.spin.y * dt;
+      b.mesh.rotation.z += b.spin.z * dt;
+      b.mesh.position.copy(b.pos);
+
+      // Flickering flame wick
+      if (b.flameMesh) {
+        const pulse = 1.0 + Math.sin(performance.now() * 0.02) * 0.3;
+        b.flameMesh.scale.set(pulse, pulse * 1.2, pulse);
+      }
+      if (b.flameLight) {
+        b.flameLight.intensity = 2.0 + Math.sin(performance.now() * 0.03) * 0.8;
+      }
+
+      // Trail of glowing sparks/smoke
+      if (Math.random() < 0.5) {
+        this.spawnParticleRing(b.pos.x, b.pos.y, b.pos.z, 0xff7700);
+      }
+
+      // Check collision with enemies
+      let hitEnemy = false;
+      this.enemies.forEach((e) => {
+        if (e.state === 'defeated') return;
+        const dist = Math.hypot(b.pos.x - e.x, b.pos.z - e.z);
+        if (dist < 1.15 && Math.abs(b.pos.y - e.y) < 1.2) {
+          hitEnemy = true;
+        }
+      });
+
+      // Find platform ground height beneath the bottle
+      let floorY = 0;
+      for (const p of this.platforms) {
+        const halfW = p.width / 2;
+        const halfD = p.depth / 2;
+        if (
+          b.pos.x >= p.x - halfW &&
+          b.pos.x <= p.x + halfW &&
+          b.pos.z >= p.z - halfD &&
+          b.pos.z <= p.z + halfD
+        ) {
+          const top = p.y + p.height / 2;
+          if (top > floorY && b.pos.y >= top - 0.4) {
+            floorY = top;
+          }
+        }
+      }
+
+      const hitGround = b.pos.y <= floorY + 0.15 && b.vel.y <= 0;
+
+      if (hitEnemy || hitGround || b.life <= 0) {
+        // DETONATION!
+        this.detonateBimberMolotov(b.pos.x, Math.max(floorY, 0), b.pos.z);
+        this.levelRoot.remove(b.mesh);
+        this.bimberMolotovs.splice(i, 1);
+      }
+    }
+  }
+
+  private detonateBimberMolotov(x: number, y: number, z: number) {
+    sound.playGlassShatter();
+    sound.playFireCrackle();
+    this.triggerScreenShake(0.55, 0.45);
+
+    // 1. Shards of broken glass flying in all directions
+    for (let s = 0; s < 12; s++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3.0 + Math.random() * 5.0;
+      const shardGeo = new THREE.BoxGeometry(0.08, 0.08, 0.03);
+      const shardMat = new THREE.MeshBasicMaterial({ color: 0x86efac, transparent: true, opacity: 0.9 });
+      const shard = new THREE.Mesh(shardGeo, shardMat);
+      shard.position.set(x, y + 0.3, z);
+      this.levelRoot.add(shard);
+      this.particles.push({
+        mesh: shard,
+        vel: new THREE.Vector3(Math.cos(angle) * speed, 2.5 + Math.random() * 3.5, Math.sin(angle) * speed),
+        life: 0.6,
+        maxLife: 0.6,
+      });
+    }
+
+    // 2. Fireball impact flash
+    const flashGeo = new THREE.SphereGeometry(1.6, 16, 16);
+    const flashMat = new THREE.MeshBasicMaterial({
+      color: 0xff3b00,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const flash = new THREE.Mesh(flashGeo, flashMat);
+    flash.position.set(x, y + 0.6, z);
+    this.levelRoot.add(flash);
+    this.specialEffects.push({
+      mesh: flash,
+      life: 0.45,
+      maxLife: 0.45,
+      grow: 3.5,
+      spin: 4.0,
+    });
+
+    // 3. Initial burst damage to anyone in the direct splash
+    this.enemies.forEach((e) => {
+      if (e.state === 'defeated') return;
+      const dist = Math.hypot(e.x - x, e.z - z);
+      if (dist < 3.2 && Math.abs(e.y - y) < 1.8) {
+        e.hp -= 2;
+        e.stunTimer = 1.5;
+        e.state = 'stunned';
+        e.onFireTimer = 3.5;
+        this.emitFloatingToast('💥 -2 HP KOKTAJL!', e.x, e.y + 0.9, e.z, 'damage');
+        if (e.hp <= 0) {
+          this.defeatEnemy(e, 280, false);
+        }
+      }
+    });
+
+    this.emitFloatingToast('🔥 MORZE OGNIA 70%!', x, y + 1.3, z, 'combo');
+
+    // 4. Create persistent burning fire puddle
+    const puddle = createMolotovFirePuddle(3.8);
+    puddle.group.position.set(x, y + 0.02, z);
+    this.levelRoot.add(puddle.group);
+
+    this.bimberFirePuddles.push({
+      group: puddle.group,
+      x,
+      y,
+      z,
+      radius: 3.8,
+      duration: 6.0,
+      maxDuration: 6.0,
+      tickTimer: 0.4,
+      flames: puddle.flames,
+      light: puddle.light,
+    });
+  }
+
+  private updateBimberFirePuddles(dt: number) {
+    for (let i = this.bimberFirePuddles.length - 1; i >= 0; i--) {
+      const p = this.bimberFirePuddles[i];
+      p.duration -= dt;
+
+      // Animate flickering fire spires
+      const time = performance.now() * 0.001;
+      p.flames.forEach((flame) => {
+        const u = flame.userData;
+        const flicker = Math.sin(time * u.speed + u.phase);
+        const scaleY = Math.max(0.3, 1.0 + flicker * 0.4);
+        flame.scale.set(1.0 + flicker * 0.15, scaleY, 1.0 + flicker * 0.15);
+      });
+
+      // Flickering light
+      p.light.intensity = 3.5 + Math.sin(time * 14) * 1.2;
+
+      // Rising smoke and embers
+      if (Math.random() < 0.45) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * (p.radius * 0.7);
+        const ex = p.x + Math.cos(angle) * r;
+        const ez = p.z + Math.sin(angle) * r;
+        const ember = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.08, 0.08),
+          new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9 })
+        );
+        ember.position.set(ex, p.y + 0.3, ez);
+        this.levelRoot.add(ember);
+        this.particles.push({
+          mesh: ember,
+          vel: new THREE.Vector3((Math.random() - 0.5) * 0.8, 1.8 + Math.random() * 1.5, (Math.random() - 0.5) * 0.8),
+          life: 0.5,
+          maxLife: 0.5,
+        });
+      }
+
+      // Damage ticks over time
+      p.tickTimer -= dt;
+      if (p.tickTimer <= 0) {
+        p.tickTimer = 0.5; // Damage every 0.5s
+
+        this.enemies.forEach((e) => {
+          if (e.state === 'defeated') return;
+          const dist = Math.hypot(e.x - p.x, e.z - p.z);
+          if (dist < p.radius && Math.abs(e.y - p.y) < 1.5) {
+            e.hp -= 1;
+            e.onFireTimer = 2.0;
+            e.speed = Math.max(1.0, e.speed * 0.85); // Slowed by burning bimber
+            sound.playHit();
+            this.emitFloatingToast('🔥 -1 HP OGIEŃ!', e.x, e.y + 0.8, e.z, 'damage');
+            this.spawnParticleRing(e.x, e.y + 0.5, e.z, 0xff5500);
+
+            if (e.hp <= 0) {
+              this.defeatEnemy(e, 260, false);
+            }
+          }
+        });
+      }
+
+      // Fade out near expiration
+      if (p.duration <= 0.8) {
+        const fade = p.duration / 0.8;
+        p.group.scale.set(fade, fade, fade);
+        p.light.intensity *= fade;
+      }
+
+      if (p.duration <= 0) {
+        // Puddle extinguishes with a puff of smoke
+        for (let k = 0; k < 6; k++) {
+          this.spawnDust(p.x + (Math.random() - 0.5) * 2, p.y + 0.2, p.z + (Math.random() - 0.5) * 2, 0x64748b);
+        }
+        this.levelRoot.remove(p.group);
+        this.bimberFirePuddles.splice(i, 1);
+      }
     }
   }
 
@@ -1623,13 +2430,45 @@ export class MaxFlizGameEngine {
     if (e.state === 'defeated') return;
     e.state = 'defeated';
     e.mesh.visible = false;
-    this.score += points;
+
+    // Combo streak calculation
+    this.comboStreak++;
+    this.comboTimer = this.charDef.id === 'mateusz' ? 5.5 : 3.8;
+    const comboMultiplier = 1 + (this.comboStreak - 1) * 0.25;
+    const finalPoints = Math.round(points * comboMultiplier);
+    this.score += finalPoints;
+
     if (showToast) {
-      this.emitFloatingToast(`+${points} Pkt Neutralizacja!`, e.x, e.y + 1, e.z, 'points');
+      this.emitFloatingToast(`+${finalPoints} Pkt Neutralizacja!`, e.x, e.y + 1, e.z, 'points');
     }
+
+    if (this.comboStreak >= 2) {
+      const comboMsg =
+        this.comboStreak >= 5
+          ? `👑 LEGENDARNY KIEROWNIK x${this.comboStreak}!`
+          : this.comboStreak >= 4
+            ? `⚡⚡ SAKRAMENCKI FLOW x${this.comboStreak}!`
+            : this.comboStreak >= 3
+              ? `🔥🔥 WŚCIEKŁY MAGAZYNIER x${this.comboStreak}!`
+              : `🔥 COMBO x${this.comboStreak}!`;
+      this.emitFloatingToast(comboMsg, e.x, e.y + 1.6, e.z, 'combo');
+    }
+
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
 
-    if (e.type === 'walczak' || e.maxHp >= 3) {
+    // In-world Perk Drop (Perki dropione na mapie z wrogów!)
+    const dropChance =
+      this.charDef.id === 'piotr'
+        ? 1.0
+        : e.type === 'walczak' || e.maxHp >= 4
+          ? 1.0
+          : 0.48;
+
+    if (Math.random() <= dropChance) {
+      this.spawnDroppedPerk(e.x, e.y + 0.1, e.z);
+    }
+
+    if (e.type === 'walczak' || e.maxHp >= 4) {
       this.callbacks.onBossUpdate?.(e.name, 0, e.maxHp, false);
       this.sayQuote('BYŁY KIEROWNIK WALCZAK ZANEUTRALIZOWANY! Droga wolna!');
 
@@ -1762,9 +2601,14 @@ export class MaxFlizGameEngine {
       return;
     }
 
-    const offsetX = this.cameraMode === 'iso' ? 12 : 7;
-    const offsetY = this.cameraMode === 'iso' ? 14 : 8;
-    const offsetZ = this.cameraMode === 'iso' ? 12 : 7;
+    if (this.cameraMode === 'close') {
+      targetX += this.playerVel.x * 0.16;
+      targetZ += this.playerVel.z * 0.16;
+    }
+
+    const offsetX = this.cameraMode === 'iso' ? 12 : 4.8;
+    const offsetY = this.cameraMode === 'iso' ? 14 : 4.4;
+    const offsetZ = this.cameraMode === 'iso' ? 12 : 5.2;
 
     const camTarget = new THREE.Vector3(targetX + offsetX, targetY + offsetY, targetZ + offsetZ);
 
@@ -1824,6 +2668,10 @@ export class MaxFlizGameEngine {
     if (this.rimLight) {
       this.rimLight.position.set(this.playerPos.x - 18, 12, this.playerPos.z - 18);
     }
+  }
+
+  public getPlayerPos(): THREE.Vector3 {
+    return this.playerPos.clone();
   }
 
   public getScore(): number {

@@ -19,6 +19,8 @@ export interface CharacterDef {
   abilityName: string;
   abilityDescription: string;
   abilityCooldown: number; // in seconds
+  passiveName: string;
+  passiveDescription: string;
   voiceLines: string[];
   bio: string;
   stats: CharacterStats;
@@ -47,7 +49,17 @@ export interface CollectibleItem {
   points: number;
 }
 
-export type EnemyType = 'customer' | 'walczak' | 'forklift' | 'architect' | 'inspector' | 'agv_robot';
+export type EnemyType =
+  | 'customer'
+  | 'walczak'
+  | 'forklift'
+  | 'architect'
+  | 'inspector'
+  | 'agv_robot'
+  | 'handlowiec'
+  | 'monter'
+  | 'piorun_dron'
+  | 'elite_walczak_guard';
 
 export interface EnemyItem {
   id: string;
@@ -78,6 +90,8 @@ export interface EnemyItem {
   bossPhase?: number;
   chargeDir?: number;
   chargeTimer?: number;
+  shieldActive?: boolean;
+  onFireTimer?: number;
 }
 
 export interface HazardItem {
@@ -105,7 +119,7 @@ export interface PlatformBlock {
   width: number;
   height: number;
   depth: number;
-  type: 'floor' | 'shelf' | 'pallet' | 'bathtub' | 'conveyor' | 'ramp' | 'finish_truck';
+  type: 'floor' | 'shelf' | 'pallet' | 'bathtub' | 'conveyor' | 'ramp' | 'finish_truck' | 'scaffold';
   bounce?: number;
   mesh?: any;
 }
@@ -131,45 +145,65 @@ export interface ActivePerks {
   speedBoost: number;   // remaining duration in seconds
 }
 
+export type PerkType = 'hardhat' | 'vibram_boots' | 'order_magnet' | 'espresso_boost';
+
 export interface PerkDef {
-  id: 'hardhat' | 'vibram_boots' | 'order_magnet' | 'espresso_boost';
+  id: PerkType;
   name: string;
   description: string;
   icon: string;
-  cost: number;
+  color: number;
   duration?: number;
+}
+
+export interface DroppedPerkItem {
+  id: string;
+  perkId: PerkType;
+  name: string;
+  icon: string;
+  color: number;
+  x: number;
+  y: number;
+  z: number;
+  initialY: number;
+  mesh: any;
+  collected: boolean;
+  life: number;
+  duration: number;
+  beacon?: any;
 }
 
 export const AVAILABLE_PERKS: PerkDef[] = [
   {
     id: 'hardhat',
     name: 'Atestowany Kask BHP',
-    description: 'Tarcza ochronna na 1 bezpośrednie trafienie od wściekłego klienta lub inspektora.',
+    description: 'Tarcza ochronna na 1 bezpośrednie trafienie od wściekłego klienta, inspektora lub kary Walczaka.',
     icon: '⛑️',
-    cost: 150,
+    color: 0x3b82f6,
   },
   {
     id: 'vibram_boots',
-    name: 'Buty Magazynowe z Vibramem',
+    name: 'Buty Magazynowe Vibram',
     description: 'Umożliwia podwójny skok w powietrzu, pozwalając wspinać się na najwyższe regały wysokiego składu.',
     icon: '👟',
-    cost: 200,
+    color: 0x10b981,
     duration: 25,
   },
   {
     id: 'order_magnet',
     name: 'Radiowy Magnes Zamówień',
-    description: 'Przyciąga wszystkie palety, fv, kleje i próbki marmuru z odległości 8 metrów!',
+    description: 'Przyciąga wszystkie palety, WZ-tki, kleje i próbki marmuru z odległości aż 9 metrów!',
     icon: '🧲',
-    cost: 250,
+    color: 0x8b5cf6,
     duration: 20,
   },
   {
     id: 'espresso_boost',
     name: 'Podwójne Espresso z Showroomu',
-    description: 'Maksymalny zryw prędkości (+55%) i natychmiastowa gotowość do omijania wózków i palet.',
+    description: 'Maksymalny zryw prędkości (+65%) i natychmiastowa gotowość do omijania wózków i palet.',
     icon: '☕',
-    cost: 180,
+    color: 0xf59e0b,
     duration: 18,
   },
 ];
+

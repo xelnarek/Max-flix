@@ -73,7 +73,13 @@ class MaxFlizScene extends xb.Script {
     }
 
     const tempProjVec = new THREE.Vector3();
-    const spawnFloatingToast = (text: string, x: number, y: number, z: number, type: 'points' | 'vip' | 'easter-egg' = 'points') => {
+    const spawnFloatingToast = (
+      text: string,
+      x: number,
+      y: number,
+      z: number,
+      type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' = 'points'
+    ) => {
       const popupsLayer = document.getElementById('floating-popups-layer');
       if (!popupsLayer) return;
       tempProjVec.set(x, y, z);
@@ -88,7 +94,26 @@ class MaxFlizScene extends xb.Script {
       popupsLayer.appendChild(toast);
       setTimeout(() => {
         toast.remove();
-      }, 1250);
+      }, 1500);
+    };
+
+    const showPerkDropBanner = (name: string, icon: string, desc: string, color: string) => {
+      const banner = document.getElementById('perk-drop-banner');
+      if (!banner) return;
+      banner.style.borderColor = color;
+      banner.style.boxShadow = `0 10px 30px -5px ${color}66`;
+      banner.innerHTML = `
+        <div class="perk-banner-icon">${icon}</div>
+        <div class="perk-banner-text">
+          <div class="perk-banner-title" style="color: ${color}">⚡ ZDOBYTO PERK: ${name.toUpperCase()}!</div>
+          <div class="perk-banner-desc">${desc}</div>
+        </div>
+      `;
+      banner.classList.remove('hidden');
+      clearTimeout((banner as any)._timeout);
+      (banner as any)._timeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 1800);
     };
 
     this.engine = new MaxFlizGameEngine(
@@ -98,6 +123,9 @@ class MaxFlizScene extends xb.Script {
       {
         onFloatingText: (text, x, y, z, type) => {
           spawnFloatingToast(text, x, y, z, type);
+        },
+        onPerkDropBanner: (name, icon, desc, color) => {
+          showPerkDropBanner(name, icon, desc, color);
         },
         onScoreUpdate: (score, collectedVip, totalVip) => {
           hudScore.textContent = score.toString();
@@ -227,7 +255,7 @@ class MaxFlizScene extends xb.Script {
         grzesiek: '⚡',
         dawid: '🧱',
         mateusz: '☕',
-        piotr: '🛠️',
+        piotr: '🍾',
       };
       heroAvatar.textContent = avatarIcons[id];
       abilityIcon.textContent = abilityIcons[id] || '⚡';
@@ -239,14 +267,14 @@ class MaxFlizScene extends xb.Script {
         grzesiek: 'Łata Brukarska',
         dawid: 'Przecinak do Gresu',
         mateusz: 'Chluśnięcie Espresso',
-        piotr: 'Poziomica Laserowa',
+        piotr: 'Rzut Kluczem Francuskim',
       };
       const attackIcons: Record<CharacterId, string> = {
         marcin: '🥊',
         grzesiek: '🔨',
         dawid: '🔪',
         mateusz: '☕',
-        piotr: '📐',
+        piotr: '🔧',
       };
       if (attackNameElem) attackNameElem.textContent = attackNames[id] || 'Atak';
       if (attackIconElem) attackIconElem.textContent = attackIcons[id] || '🥊';
@@ -254,10 +282,14 @@ class MaxFlizScene extends xb.Script {
       const detailTitle = document.getElementById('char-detail-title');
       const detailBio = document.getElementById('char-detail-bio');
       const detailSkill = document.getElementById('char-detail-skill');
+      const detailPassive = document.getElementById('char-detail-passive');
       if (detailTitle && detailBio && detailSkill) {
         detailTitle.textContent = `${def.name} – ${def.title}`;
         detailBio.textContent = def.bio;
-        detailSkill.innerHTML = `<strong>Umiejętność:</strong> ${def.abilityName} – ${def.abilityDescription}`;
+        detailSkill.innerHTML = `<strong>⚡ Super Umiejętność:</strong> ${def.abilityName} – ${def.abilityDescription}`;
+        if (detailPassive) {
+          detailPassive.innerHTML = `<strong>🛡️ Zdolność Pasywna:</strong> ${def.passiveName} – ${def.passiveDescription}`;
+        }
       }
 
       const statBarSpeed = document.getElementById('stat-bar-speed');
@@ -392,17 +424,13 @@ class MaxFlizScene extends xb.Script {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const btnEl = e.currentTarget as HTMLElement;
-        const perkId = btnEl.getAttribute('data-perk') as 'hardhat' | 'vibram_boots' | 'order_magnet' | 'espresso_boost';
-        if (perkId) {
-          this.engine.activatePerk(perkId);
-          const originalText = btnEl.textContent || 'AKTYWUJ';
-          btnEl.textContent = 'AKTYWNY! ✅';
-          btnEl.classList.add('activated');
-          setTimeout(() => {
-            btnEl.textContent = originalText;
-            btnEl.classList.remove('activated');
-          }, 3500);
-        }
+        const originalText = btnEl.textContent || 'DROP W GRZE 📍';
+        btnEl.textContent = 'DROPI NA MAPIE! 📦';
+        btnEl.classList.add('activated');
+        setTimeout(() => {
+          btnEl.textContent = originalText;
+          btnEl.classList.remove('activated');
+        }, 2200);
       });
     });
 
@@ -548,9 +576,16 @@ class MaxFlizScene extends xb.Script {
       });
     });
 
-    document.getElementById('btn-camera')?.addEventListener('click', () => {
-      this.engine.toggleCameraMode();
-    });
+    const handleCameraToggle = () => {
+      const mode = this.engine.toggleCameraMode();
+      if (mode === 'close') {
+        spawnFloatingToast('📐 KAMERA 3D: AKCJA ZA PLECAMI', this.engine.getPlayerPos().x, this.engine.getPlayerPos().y + 1.2, this.engine.getPlayerPos().z, 'combo');
+      } else {
+        spawnFloatingToast('📐 KAMERA 3D: SZEROKI PRZEGLĄD', this.engine.getPlayerPos().x, this.engine.getPlayerPos().y + 1.2, this.engine.getPlayerPos().z, 'vip');
+      }
+    };
+    document.getElementById('btn-camera')?.addEventListener('click', handleCameraToggle);
+    document.getElementById('btn-top-camera')?.addEventListener('click', handleCameraToggle);
 
     document.getElementById('btn-attack')?.addEventListener('click', () => {
       this.engine.triggerAttack();

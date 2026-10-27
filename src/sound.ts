@@ -194,6 +194,8 @@ class SoundEngine {
       gain.connect(this.ctx.destination);
       osc.start(t);
       osc.stop(t + 0.3);
+    } else if (charId === 'piotr') {
+      this.playMolotovThrow();
     } else {
       // Mateusz Espresso boost chimes
       [523, 659, 783, 1046, 1318].forEach((f, i) => {
@@ -620,6 +622,111 @@ class SoundEngine {
     noiseGain.connect(this.ctx.destination);
     noiseOsc.start(t);
     noiseOsc.stop(t + 0.22);
+  }
+
+  public playMolotovThrow() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    // 1. Burning wick sizzle
+    const sizzle = this.ctx.createOscillator();
+    const sGain = this.ctx.createGain();
+    sizzle.type = 'sawtooth';
+    sizzle.frequency.setValueAtTime(800, t);
+    sizzle.frequency.linearRampToValueAtTime(1400, t + 0.25);
+    sGain.gain.setValueAtTime(0.18, t);
+    sGain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+    sizzle.connect(sGain);
+    sGain.connect(this.ctx.destination);
+    sizzle.start(t);
+    sizzle.stop(t + 0.26);
+
+    // 2. High arc air whoosh
+    const whoosh = this.ctx.createOscillator();
+    const wGain = this.ctx.createGain();
+    whoosh.type = 'triangle';
+    whoosh.frequency.setValueAtTime(140, t);
+    whoosh.frequency.exponentialRampToValueAtTime(380, t + 0.15);
+    whoosh.frequency.exponentialRampToValueAtTime(90, t + 0.35);
+    wGain.gain.setValueAtTime(0.3, t);
+    wGain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+    whoosh.connect(wGain);
+    wGain.connect(this.ctx.destination);
+    whoosh.start(t);
+    whoosh.stop(t + 0.36);
+  }
+
+  public playGlassShatter() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    // Heavy impact thud
+    const thud = this.ctx.createOscillator();
+    const thudGain = this.ctx.createGain();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(200, t);
+    thud.frequency.exponentialRampToValueAtTime(38, t + 0.28);
+    thudGain.gain.setValueAtTime(0.5, t);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    thud.connect(thudGain);
+    thudGain.connect(this.ctx.destination);
+    thud.start(t);
+    thud.stop(t + 0.3);
+
+    // Glass shards tinkling / fracturing
+    const glassPitches = [1900, 2600, 3400, 4200, 1400];
+    glassPitches.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.02);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, t + idx * 0.02 + 0.15);
+      gain.gain.setValueAtTime(0.2, t + idx * 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.02 + 0.16);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(t + idx * 0.02);
+      osc.stop(t + idx * 0.02 + 0.17);
+    });
+  }
+
+  public playFireCrackle() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+
+    // Fire explosion whoosh / roar
+    const roar = this.ctx.createOscillator();
+    const roarGain = this.ctx.createGain();
+    roar.type = 'sawtooth';
+    roar.frequency.setValueAtTime(80, t);
+    roar.frequency.linearRampToValueAtTime(180, t + 0.15);
+    roar.frequency.exponentialRampToValueAtTime(45, t + 0.55);
+    roarGain.gain.setValueAtTime(0.4, t);
+    roarGain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    roar.connect(roarGain);
+    roarGain.connect(this.ctx.destination);
+    roar.start(t);
+    roar.stop(t + 0.56);
+
+    // Sizzling flame bursts
+    [0.05, 0.15, 0.28].forEach((offset) => {
+      const pop = this.ctx!.createOscillator();
+      const popGain = this.ctx!.createGain();
+      pop.type = 'square';
+      pop.frequency.setValueAtTime(400 + Math.random() * 300, t + offset);
+      popGain.gain.setValueAtTime(0.18, t + offset);
+      popGain.gain.exponentialRampToValueAtTime(0.01, t + offset + 0.08);
+      pop.connect(popGain);
+      popGain.connect(this.ctx!.destination);
+      pop.start(t + offset);
+      pop.stop(t + offset + 0.09);
+    });
   }
 }
 
