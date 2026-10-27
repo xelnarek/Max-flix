@@ -49,6 +49,12 @@ import {
   createVolumetricLightBeam,
   createWalczakBossModel,
   createWarehouseRack,
+  createKurierEnemyModel,
+  createItalianVendorEnemyModel,
+  createSztaplarEnemyModel,
+  createSprayGraffitiDecal,
+  createCrimeSceneBodyOutlineDecal,
+  createKrolLetoBossModel,
   getFloorTexture,
   getHazardStripeTexture,
   getMaxFlizLogoTexture,
@@ -64,7 +70,7 @@ export interface GameCallbacks {
   onGameOver: (reason: string) => void;
   onBossUpdate?: (name: string, hp: number, maxHp: number, visible: boolean) => void;
   onPerksUpdate?: (perks: ActivePerks) => void;
-  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo') => void;
+  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout') => void;
   onPerkDropBanner?: (name: string, icon: string, desc: string, color: string) => void;
 }
 
@@ -144,7 +150,7 @@ export class MaxFlizGameEngine {
   private droppedPerks: DroppedPerkItem[] = [];
   private hazards: HazardItem[] = [];
   private enemies: EnemyItem[] = [];
-  private enemyProjectiles: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }[] = [];
+  private enemyProjectiles: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number; isDyscyplinarka?: boolean }[] = [];
   private particles: {
     mesh: THREE.Mesh;
     vel: THREE.Vector3;
@@ -691,6 +697,41 @@ export class MaxFlizGameEngine {
     this.callbacks.onBossUpdate?.('Były Kierownik Walczak', 10, 10, true);
   }
 
+  private addKrolLetoBossEnemy(id: string, x: number, z: number) {
+    const built = createKrolLetoBossModel();
+    built.group.position.set(x, 0.6, z);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'krol_leto',
+      name: 'Król-Leto (Dyrektor Generalny)',
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.6,
+      z,
+      startX: x - 12,
+      endX: x + 12,
+      speed: 3.8,
+      dir: -1,
+      hp: 12,
+      maxHp: 12,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      specialActionTimer: 2.2,
+      bossPhase: 1,
+    });
+    this.callbacks.onBossUpdate?.('Król-Leto (Dyrektor Generalny)', 12, 12, true);
+  }
+
   private addInspectorEnemy(id: string, x: number, minX: number, maxX: number, name: string) {
     const built = createInspectorEnemyModel();
     built.group.position.set(x, 0.4, minX);
@@ -854,6 +895,103 @@ export class MaxFlizGameEngine {
     });
   }
 
+  private addKurierEnemy(id: string, x: number, minX: number, maxX: number, name = 'Szybki Kurier z Paczką Calacatta') {
+    const built = createKurierEnemyModel();
+    built.group.position.set(x, 0.4, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'kurier',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.4,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 4.5,
+      dir: 1,
+      hp: 2,
+      maxHp: 2,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+    });
+  }
+
+  private addItalianVendorEnemy(id: string, x: number, minX: number, maxX: number, name = 'Włoski Dostawca Armatury z Mediolanu') {
+    const built = createItalianVendorEnemyModel();
+    built.group.position.set(x, 0.4, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'przedstawiciel_włoski',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.4,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 2.6,
+      dir: 1,
+      hp: 3,
+      maxHp: 3,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+      specialActionTimer: 2.5,
+    });
+  }
+
+  private addSztaplarEnemy(id: string, x: number, minX: number, maxX: number, name = 'Szalony Operator Paleciaka B4') {
+    const built = createSztaplarEnemyModel();
+    built.group.position.set(x, 0.5, minX);
+    this.levelRoot.add(built.group);
+    this.enemies.push({
+      id,
+      type: 'sztaplar_szalony',
+      name,
+      mesh: built.group,
+      speechMesh: null,
+      x,
+      y: 0.5,
+      z: minX,
+      startX: minX,
+      endX: maxX,
+      speed: 3.5,
+      dir: 1,
+      hp: 4,
+      maxHp: 4,
+      state: 'patrol',
+      stunTimer: 0,
+      shoutTimer: 0,
+      shoutText: '',
+      attackCooldown: 0,
+      walkCycle: 0,
+      legL: built.legL,
+      legR: built.legR,
+      armL: built.armL,
+      armR: built.armR,
+    });
+  }
+
   public spawnDroppedPerk(x: number, y: number, z: number, forcedPerkId?: PerkType) {
     const perkDef = forcedPerkId
       ? AVAILABLE_PERKS.find((p) => p.id === forcedPerkId)!
@@ -944,7 +1082,7 @@ export class MaxFlizGameEngine {
     worldX: number,
     worldY: number,
     worldZ: number,
-    type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' = 'points'
+    type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points'
   ) {
     this.callbacks.onFloatingText?.(text, worldX, worldY, worldZ, type);
   }
@@ -1083,10 +1221,22 @@ export class MaxFlizGameEngine {
     // Forklift Hazard
     this.addForkliftHazard('forklift_1', -24, 20, 0, 4.4, 0xf59e0b);
 
+    // Spray Graffiti & Crime Scene Chalk Outline Decals
+    const spray1 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
+    spray1.position.set(-12, 1.8, -12.7);
+    this.levelRoot.add(spray1);
+
+    const crime1 = createCrimeSceneBodyOutlineDecal();
+    crime1.position.set(-30, 0.02, -10.5);
+    this.levelRoot.add(crime1);
+
     // Expanded Dense Roster of Enemies on Level 1
     this.addCustomerEnemy('cust_1', -16, -6, 6, 'Klient z Reklamacją na Fugi');
     this.addCustomerEnemy('cust_2', 4, -6, 6, 'Pan Janusz (Gdzie moja faktura?!)');
     this.addCustomerEnemy('cust_3', -8, -6, 6, 'Awanturujący się Klient po Rabaty');
+    this.addKurierEnemy('kurier_l1_1', -10, -6, 6, 'Rudy z DPD (Johnny Walker Express)');
+    this.addItalianVendorEnemy('ital_l1_1', 8, -5, 5, 'Włoski Dostawca Armatury z Mediolanu');
+    this.addSztaplarEnemy('sztaplar_l1_1', -2, -6, 6, 'Szalony Operator Paleciaka B4');
     this.addAgvRobotEnemy('agv_1', -4, 12, 2.8, 'Autonomiczny AGV ze zlewami');
     this.addAgvRobotEnemy('agv_2', 8, -12, -2.8, 'Szalony Sztaplar AGV B4');
     this.addHandlowiecEnemy('handl_1', -12, -5, 5, 'Handlowiec z Ofertą na Rabat 3%');
@@ -1201,9 +1351,21 @@ export class MaxFlizGameEngine {
     // Easter Egg
     this.addEasterEgg('egg_throne_1', 30, 0.05, -9, 'Złoty Tron Prezesa z 24k Złotem', 'throne', 600);
 
+    // Decals
+    const spray2 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
+    spray2.position.set(16, 2.2, -13.7);
+    this.levelRoot.add(spray2);
+
+    const crime2 = createCrimeSceneBodyOutlineDecal();
+    crime2.position.set(-34, 0.02, 10.0);
+    this.levelRoot.add(crime2);
+
     // Dense Enemies in Showroom
     this.addCustomerEnemy('cust_l2_1', -22, -6, 6, 'Zdezorientowany Klient Szukający Syfonu');
     this.addCustomerEnemy('cust_l2_2', 10, -6, 6, 'Klient z Projektantką Wnętrz');
+    this.addKurierEnemy('kurier_l2_1', -16, -6, 6, 'Rudy z DPD (Johnny Walker Express)');
+    this.addItalianVendorEnemy('ital_l2_1', 2, -6, 6, 'Przedstawiciel Fabryki z Bolonii');
+    this.addSztaplarEnemy('sztaplar_l2_1', 18, -6, 6, 'Kierowca Sztaplarki Showroomu');
     this.addArchitectEnemy('arch_l2_1', -12, -6, 6, 'Główny Projektant Wnętrz z Warszawy');
     this.addArchitectEnemy('arch_l2_2', 6, -6, 6, 'Krytyk Mieszanek Tynkarskich i Beżu');
     this.addArchitectEnemy('arch_l2_3', -20, -6, 6, 'Stylista Luksusowych Łazienek');
@@ -1213,6 +1375,9 @@ export class MaxFlizGameEngine {
     this.addMonterEnemy('monter_l2_1', -14, -6, 6, 'Hydraulik z Kluczem Nastawnym');
     this.addPiorunDronEnemy('dron_l2_1', -20, 20, 0, 2.4, 'Dron Multimedialny Showroomu');
     this.addPiorunDronEnemy('dron_l2_2', -15, 25, 4, 2.5, 'Skrzydlaty Skaner Ekspozycji');
+
+    // BOSS LEVEL 2: Król-Leto
+    this.addKrolLetoBossEnemy('boss_krol_leto_l2', 24, 0);
 
     // Finish Loading Gate
     const finishGate = createFinishGate();
@@ -1227,7 +1392,7 @@ export class MaxFlizGameEngine {
   }
 
   private buildLevel3() {
-    // 1. Massive Final Arena: Baza Przeładunkowa & Starcie z Walczakiem (90x32)
+    // 1. Massive Final Arena: Baza Przeładunkowa & Starcie z Walczakiem i Królem-Leto (90x32)
     const floorGeo = new THREE.PlaneGeometry(90, 32);
     const floorMat = new THREE.MeshStandardMaterial({
       map: getFloorTexture(),
@@ -1248,8 +1413,17 @@ export class MaxFlizGameEngine {
     backWall.position.set(0, 5.25, -16);
     this.levelRoot.add(backWall);
 
+    // Decals Level 3
+    const spray3 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
+    spray3.position.set(0, 2.5, -15.7);
+    this.levelRoot.add(spray3);
+
+    const crime3 = createCrimeSceneBodyOutlineDecal();
+    crime3.position.set(-38, 0.02, 12.0);
+    this.levelRoot.add(crime3);
+
     // Ominous Warning Neon Sign
-    const neonSign = createNeonShowroomSign('STREFA ZAMKNIĘTA • GŁÓWNY AUDYT WALCZAKA', '#ef4444');
+    const neonSign = createNeonShowroomSign('STREFA ZAMKNIĘTA • GŁÓWNY AUDYT WALCZAKA & KRÓLA-LETO', '#ef4444');
     neonSign.position.set(0, 7.5, -15.75);
     this.levelRoot.add(neonSign);
 
@@ -1309,6 +1483,9 @@ export class MaxFlizGameEngine {
     this.addEliteGuardEnemy('guard_1', -14, -8, 8, 'Ochroniarz Walczaka z Tarczą BHP');
     this.addEliteGuardEnemy('guard_2', 10, -8, 8, 'Inspektor Taktyczny Walczaka');
     this.addEliteGuardEnemy('guard_3', -2, -8, 8, 'Kapitan Straży Walczaka');
+    this.addKurierEnemy('kurier_l3_1', -26, -8, 8, 'Rudy z DPD (Johnny Walker Express)');
+    this.addItalianVendorEnemy('ital_l3_1', -12, -8, 8, 'Główny Importer Gresu z Italii');
+    this.addSztaplarEnemy('sztaplar_l3_1', 12, -8, 8, 'Taran Sztaplarka Straży Walczaka');
     this.addCustomerEnemy('cust_l3_1', -22, -8, 8, 'Niezadowolony Nabywca Próbek');
     this.addArchitectEnemy('arch_l3_1', -16, -8, 8, 'Militarny Architekt Projektu');
     this.addMonterEnemy('monter_l3_1', -8, -8, 8, 'Brygadzista Budowlany Walczaka');
@@ -1318,8 +1495,9 @@ export class MaxFlizGameEngine {
     this.addPiorunDronEnemy('dron_l3_1', -25, 25, 0, 2.6, 'Dron Bojowy Walczaka V3');
     this.addPiorunDronEnemy('dron_l3_2', -20, 28, -4, 2.8, 'Dron Obserwacyjny Areny B4');
 
-    // FINAL BOSS: Były Kierownik Walczak
-    this.addWalczakBossEnemy('boss_walczak', 26, 0);
+    // DUAL FINAL BOSSES: Były Kierownik Walczak & Król-Leto!
+    this.addWalczakBossEnemy('boss_walczak', 26, -4);
+    this.addKrolLetoBossEnemy('boss_krol_leto_l3', 26, 4);
 
     // Final Victory Gate
     const finishGate = createFinishGate();
@@ -1666,6 +1844,88 @@ export class MaxFlizGameEngine {
   }
 
   private updateEnemies(dt: number) {
+    const ENEMY_QUOTES: Record<string, string[]> = {
+      customer: [
+        "Gdzie moje kafelki?!",
+        "Awantura o rabat 10%!",
+        "Chcę widzieć kierownika!",
+        "Płytki miały być gładkie!"
+      ],
+      architect: [
+        "To ma być ecru czy beż?!",
+        "Brak dylatacji na podłodze!",
+        "Gres niezgodny z projektem!",
+        "Wizualizacja mówiła inaczej!"
+      ],
+      agv_robot: [
+        "BEEP BOOP ZLEW B4!",
+        "Uwaga! Transport palety!",
+        "Błąd czujnika przeszkód!",
+        "Sztaplowanie w toku!"
+      ],
+      inspector: [
+        "Gdzie kask BHP?!",
+        "Brak protokołu odbioru!",
+        "Mandat 500 PLN za bałagan!",
+        "Przekroczenie normy hałasu!"
+      ],
+      handlowiec: [
+        "Mam super ofertę na zlew!",
+        "Rabat 3% tylko dzisiaj!",
+        "A może zestaw baterii?!",
+        "Darmowa dostawa do hotelu!"
+      ],
+      monter: [
+        "Dobiję to gumowym młotkiem!",
+        "Brak poziomu w alei!",
+        "Cięcie po skosie 45°!",
+        "Mieszam klej wysokie wiązanie!"
+      ],
+      piorun_dron: [
+        "BZZZT SKAN KODU B4!",
+        "Niezgodność numeru WZ!",
+        "Skanowanie palety A1!",
+        "Detekcja ruchu w alei!"
+      ],
+      elite_walczak_guard: [
+        "Strefa Walczaka zamknięta!",
+        "Brak przepustki B4!",
+        "Odwrót z magazynu!",
+        "Tarcza BHP w gotowości!"
+      ],
+      kurier: [
+        "Załatwię Johnny Walkera tanio!",
+        "Rudy z DPD z paczką Johnny Walker!",
+        "Johnny Walker za pół ceny od Rudego!",
+        "Dostawa DPD od Rudego z DPD!",
+        "Paczka ekspresowa DPD dla VIP!"
+      ],
+      przedstawiciel_włoski: [
+        "Mamma mia, armatura de lux!",
+        "Złote baterie z Mediolanu!",
+        "Prego, uwaga na marmur!",
+        "Amore, to jest prawdziwy styl!"
+      ],
+      sztaplar_szalony: [
+        "Z drogi, 3 tony ładunku!",
+        "Paleciak bez hamulców!",
+        "Uwaga wyjazd z alei C!",
+        "Czysta moc 300 Nm!"
+      ],
+      walczak: [
+        "Ten magazyn jest MÓJ!",
+        "Anuluję wszystkie faktury!",
+        "Zawiadamiam Centralę!",
+        "Nikt tu nie wygra ze mną!"
+      ],
+      krol_leto: [
+        "ZWALNIAM CIĘ DYSCYPLINARNIE!",
+        "Dyscyplinarka w trybie natychmiastowym!",
+        "Oddawaj kask BHP i przepustkę!",
+        "Moja decyzja o zwolnieniu jest OSTATECZNA!"
+      ]
+    };
+
     this.enemies.forEach((e) => {
       if (e.state === 'defeated' || !e.mesh) return;
 
@@ -1681,9 +1941,23 @@ export class MaxFlizGameEngine {
         return;
       }
 
-      // Movement & behavior per enemy type
+      // Dynamic AI Distance to Player
+      const dx = this.playerPos.x - e.x;
+      const dz = this.playerPos.z - e.z;
+      const distToPlayer = Math.hypot(dx, dz);
+
+      // Random Shout Quotes floating above head without frame
+      e.shoutTimer = (e.shoutTimer || 0) - dt;
+      if (e.shoutTimer <= 0 && distToPlayer < 12.0) {
+        e.shoutTimer = 3.2 + Math.random() * 2.8;
+        const quotes = ENEMY_QUOTES[e.type] || ["Z drogi!"];
+        const quote = quotes[Math.floor(Math.random() * quotes.length)];
+        e.shoutText = quote;
+        this.emitFloatingToast(quote, e.x, e.y + 1.25, e.z, 'enemy_shout');
+      }
+
+      // Special movement per type
       if (e.type === 'piorun_dron') {
-        // High-speed rotor spin
         if (e.legL) e.legL.rotation.y += dt * 30;
         if (e.legR) e.legR.rotation.y += dt * 30;
         if (e.armL) e.armL.rotation.y += dt * 30;
@@ -1697,50 +1971,98 @@ export class MaxFlizGameEngine {
         }
         e.mesh.position.set(e.x, e.y + Math.sin(performance.now() * 0.005) * 0.12, e.z);
       } else if (e.type === 'walczak') {
-        e.x += e.speed * e.dir * dt;
-        if (e.dir > 0 && e.x >= e.endX) {
-          e.dir = -1;
-          e.mesh.rotation.y = Math.PI / 2;
-        } else if (e.dir < 0 && e.x <= e.startX) {
-          e.dir = 1;
-          e.mesh.rotation.y = -Math.PI / 2;
+        // Boss AI: Charge & Chasing
+        if (distToPlayer < 14.0) {
+          const angle = Math.atan2(dx, dz);
+          e.mesh.rotation.y = angle;
+          e.x += (dx / Math.max(0.1, distToPlayer)) * e.speed * 0.95 * dt;
+          e.z += (dz / Math.max(0.1, distToPlayer)) * e.speed * 0.95 * dt;
+        } else {
+          e.x += e.speed * e.dir * dt;
+          if (e.dir > 0 && e.x >= e.endX) {
+            e.dir = -1;
+            e.mesh.rotation.y = Math.PI / 2;
+          } else if (e.dir < 0 && e.x <= e.startX) {
+            e.dir = 1;
+            e.mesh.rotation.y = -Math.PI / 2;
+          }
         }
         e.mesh.position.set(e.x, e.y, e.z);
 
         if (e.specialActionTimer !== undefined) {
           e.specialActionTimer -= dt;
           if (e.specialActionTimer <= 0) {
-            e.specialActionTimer = 3.2;
+            e.specialActionTimer = 3.0;
             this.spawnPenaltyNotice(e.x, e.y + 1.2, e.z);
           }
         }
         this.callbacks.onBossUpdate?.(e.name, e.hp, e.maxHp, true);
-      } else {
-        // Regular patrolling enemies along Z or X
-        e.z += e.speed * e.dir * dt;
-        if (e.dir > 0 && e.z >= e.endX) {
-          e.dir = -1;
-          e.mesh.rotation.y = Math.PI;
-        } else if (e.dir < 0 && e.z <= e.startX) {
-          e.dir = 1;
-          e.mesh.rotation.y = 0;
+      } else if (e.type === 'krol_leto') {
+        // Boss AI: Król-Leto (Dyrektor Generalny)
+        if (distToPlayer < 15.0) {
+          const angle = Math.atan2(dx, dz);
+          e.mesh.rotation.y = angle;
+          e.x += (dx / Math.max(0.1, distToPlayer)) * e.speed * 1.05 * dt;
+          e.z += (dz / Math.max(0.1, distToPlayer)) * e.speed * 1.05 * dt;
+        } else {
+          e.x += e.speed * e.dir * dt;
+          if (e.dir > 0 && e.x >= e.endX) {
+            e.dir = -1;
+            e.mesh.rotation.y = Math.PI / 2;
+          } else if (e.dir < 0 && e.x <= e.startX) {
+            e.dir = 1;
+            e.mesh.rotation.y = -Math.PI / 2;
+          }
         }
         e.mesh.position.set(e.x, e.y, e.z);
 
-        // Special attacks
-        if (e.type === 'handlowiec' && e.specialActionTimer !== undefined) {
+        if (e.specialActionTimer !== undefined) {
           e.specialActionTimer -= dt;
-          const distToPlayer = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
+          if (e.specialActionTimer <= 0 && distToPlayer < 12.0) {
+            e.specialActionTimer = 2.2;
+            this.spawnDyscyplinarkaNotice(e.x, e.y + 1.2, e.z);
+            this.emitFloatingToast('🚨 DYSCYPLINARKA NA HITA!', e.x, e.y + 1.5, e.z, 'damage');
+          }
+        }
+        this.callbacks.onBossUpdate?.(e.name, e.hp, e.maxHp, true);
+      } else {
+        // Dynamic Chase / Tracking AI for ground enemies
+        const chaseRadius = e.type === 'kurier' ? 14.0 : e.type === 'sztaplar_szalony' ? 12.0 : 10.0;
+
+        if (distToPlayer < chaseRadius) {
+          e.state = 'chase';
+          const angle = Math.atan2(dx, dz);
+          e.mesh.rotation.y = angle;
+
+          const chaseSpeed = e.speed * (e.type === 'kurier' ? 1.35 : 1.2);
+          e.x += (dx / Math.max(0.1, distToPlayer)) * chaseSpeed * dt;
+          e.z += (dz / Math.max(0.1, distToPlayer)) * chaseSpeed * dt;
+        } else {
+          e.state = 'patrol';
+          e.z += e.speed * e.dir * dt;
+          if (e.dir > 0 && e.z >= e.endX) {
+            e.dir = -1;
+            e.mesh.rotation.y = Math.PI;
+          } else if (e.dir < 0 && e.z <= e.startX) {
+            e.dir = 1;
+            e.mesh.rotation.y = 0;
+          }
+        }
+        e.mesh.position.set(e.x, e.y, e.z);
+
+        // Ranged special attacks
+        if ((e.type === 'handlowiec' || e.type === 'przedstawiciel_włoski') && e.specialActionTimer !== undefined) {
+          e.specialActionTimer -= dt;
           if (e.specialActionTimer <= 0 && distToPlayer < 9.0) {
-            e.specialActionTimer = 3.2;
+            e.specialActionTimer = 2.8;
             this.spawnPenaltyNotice(e.x, e.y + 0.8, e.z);
-            this.emitFloatingToast('📑 OFERTA RABATOWA!', e.x, e.y + 1.2, e.z, 'damage');
+            const msg = e.type === 'przedstawiciel_włoski' ? '🇮🇹 ARMATURA DE LUX!' : '📑 OFERTA RABATOWA!';
+            this.emitFloatingToast(msg, e.x, e.y + 1.2, e.z, 'damage');
           }
         } else if (e.type === 'inspector' && e.specialActionTimer !== undefined) {
           e.specialActionTimer -= dt;
-          const distToPlayer = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
           if (e.specialActionTimer <= 0 && distToPlayer < 6.5) {
-            e.specialActionTimer = 3.0;
+            e.specialActionTimer = 2.8;
             sound.playWhistle();
             this.emitFloatingToast('🚨 KONTROLA BHP!', e.x, e.y + 1.2, e.z, 'damage');
           }
@@ -1749,7 +2071,7 @@ export class MaxFlizGameEngine {
 
       // Check collision with player
       const dist = Math.hypot(e.x - this.playerPos.x, e.z - this.playerPos.z);
-      const hitRadius = e.type === 'walczak' ? 1.5 : e.type === 'elite_walczak_guard' ? 1.3 : 1.1;
+      const hitRadius = e.type === 'walczak' || e.type === 'krol_leto' ? 1.5 : e.type === 'elite_walczak_guard' ? 1.3 : 1.1;
 
       if (dist < hitRadius) {
         // 1. STOMP MECHANIC (Naskok z góry)
@@ -1780,6 +2102,15 @@ export class MaxFlizGameEngine {
             e.hp -= 3;
             this.emitFloatingToast('-3 HP ŚCISK!', e.x, e.y + 1, e.z, 'damage');
             if (e.hp <= 0) this.defeatEnemy(e, 280, true);
+          } else if (e.type === 'krol_leto') {
+            if (this.activePerks.shield) {
+              this.activePerks.shield = false;
+              this.invulnerableTimer = 1.2;
+              sound.playShieldBreak();
+              this.sayQuote('Kask BHP zamortyzował atak Króla-Leto!');
+            } else {
+              this.takeDamage('🚨 ZWOLNIENIE DYSCYPLINARNE NA HITA OD KRÓLA-LETO!');
+            }
           } else {
             this.takeDamage(`Zaatakował Cię: ${e.name}!`);
           }
@@ -1794,6 +2125,17 @@ export class MaxFlizGameEngine {
     this.levelRoot.add(mesh);
     const dir = new THREE.Vector3(this.playerPos.x - x, 0, this.playerPos.z - z).normalize();
     this.enemyProjectiles.push({ mesh, vel: dir.multiplyScalar(7.5), life: 3.5 });
+    sound.playWhistle();
+  }
+
+  private spawnDyscyplinarkaNotice(x: number, y: number, z: number) {
+    const mesh = createPenaltyNoticeProjectile();
+    mesh.scale.setScalar(1.6);
+    (mesh.material as THREE.MeshStandardMaterial).color.setHex(0xef4444);
+    mesh.position.set(x, y, z);
+    this.levelRoot.add(mesh);
+    const dir = new THREE.Vector3(this.playerPos.x - x, 0, this.playerPos.z - z).normalize();
+    this.enemyProjectiles.push({ mesh, vel: dir.multiplyScalar(10.0), life: 3.5, isDyscyplinarka: true });
     sound.playWhistle();
   }
 
@@ -1846,7 +2188,19 @@ export class MaxFlizGameEngine {
 
       const dist = Math.hypot(ep.mesh.position.x - this.playerPos.x, ep.mesh.position.z - this.playerPos.z);
       if (dist < 0.85 && Math.abs(ep.mesh.position.y - this.playerPos.y) < 1.0) {
-        this.takeDamage('Trafiło Cię wezwanie wyjaśniające od Walczaka!');
+        if (ep.isDyscyplinarka) {
+          if (this.activePerks.shield) {
+            this.activePerks.shield = false;
+            this.invulnerableTimer = 1.2;
+            sound.playShieldBreak();
+            this.sayQuote('Kask BHP zamortyzował DYSCYPLINARKĘ Króla-Leto!');
+            this.emitFloatingToast('🛡️ BLOK DYSCYPLINARKI!', this.playerPos.x, this.playerPos.y + 1, this.playerPos.z, 'perk');
+          } else {
+            this.takeDamage('🚨 ZWOLNIENIE DYSCYPLINARNE NA HITA OD KRÓLA-LETO!');
+          }
+        } else {
+          this.takeDamage('Trafiło Cię wezwanie wyjaśniające od Walczaka!');
+        }
         this.levelRoot.remove(ep.mesh);
         this.enemyProjectiles.splice(i, 1);
         continue;

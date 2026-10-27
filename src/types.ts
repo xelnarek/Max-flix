@@ -59,7 +59,11 @@ export type EnemyType =
   | 'handlowiec'
   | 'monter'
   | 'piorun_dron'
-  | 'elite_walczak_guard';
+  | 'elite_walczak_guard'
+  | 'kurier'
+  | 'przedstawiciel_włoski'
+  | 'sztaplar_szalony'
+  | 'krol_leto';
 
 export interface EnemyItem {
   id: string;

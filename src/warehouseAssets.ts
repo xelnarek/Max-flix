@@ -2598,3 +2598,494 @@ export function createMolotovFirePuddle(radius = 3.8): {
 
   return { group, flames, light };
 }
+
+/**
+ * 23. NEW ENEMY: Szybki Kurier Ekspresowy z Paczką Calacatta
+ */
+export function createKurierEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const vestMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 }); // Hi-vis yellow vest
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 }); // Blue courier shirt
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 });
+  const parcelMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.8 }); // Cardboard box
+
+  // Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.46, 0.22), vestMat);
+  body.position.y = 0.58;
+  body.castShadow = true;
+  group.add(body);
+
+  // Reflective Stripes
+  const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const stripe1 = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.04, 0.23), stripeMat);
+  stripe1.position.y = 0.62;
+  const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.04, 0.23), stripeMat);
+  stripe2.position.y = 0.52;
+  group.add(stripe1, stripe2);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.96;
+  head.castShadow = true;
+  group.add(head);
+
+  // Courier Cap with Visor
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.06, 16), capMat);
+  cap.position.y = 1.08;
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.015, 0.1), capMat);
+  visor.position.set(0, 1.06, 0.16);
+  visor.rotation.x = 0.15;
+  group.add(cap, visor);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.13, 0.38, 0.14);
+  const legL = new THREE.Mesh(legGeo, pantsMat);
+  legL.position.set(-0.1, 0.2, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, pantsMat);
+  legR.position.set(0.1, 0.2, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms carrying Cardboard Parcel Box
+  const armGeo = new THREE.BoxGeometry(0.11, 0.38, 0.11);
+  const armL = new THREE.Mesh(armGeo, shirtMat);
+  armL.position.set(-0.24, 0.56, 0.08);
+  armL.rotation.x = -0.6;
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, shirtMat);
+  armR.position.set(0.24, 0.56, 0.08);
+  armR.rotation.x = -0.6;
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Parcel Box
+  const parcel = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.26), parcelMat);
+  parcel.position.set(0, 0.52, 0.2);
+  parcel.castShadow = true;
+
+  // Parcel tape
+  const tape = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.04), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+  parcel.add(tape);
+  group.add(parcel);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.6, 0.6),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head };
+}
+
+/**
+ * 24. NEW ENEMY: Włoski Dostawca Armatury z Mediolanu
+ */
+export function createItalianVendorEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const suitMat = new THREE.MeshStandardMaterial({ color: 0x6b21a8, roughness: 0.3 }); // Purple Italian suit
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9, roughness: 0.1 }); // Golden Faucet
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const glassesMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.95 });
+
+  // Body with open jacket & golden tie
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.2), suitMat);
+  body.position.y = 0.58;
+  body.castShadow = true;
+  group.add(body);
+
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.02), shirtMat);
+  shirt.position.set(0, 0.58, 0.101);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.03), goldMat);
+  tie.position.set(0, 0.56, 0.11);
+  group.add(shirt, tie);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+  head.position.y = 0.96;
+  head.castShadow = true;
+  group.add(head);
+
+  // Golden Aviator Sunglasses
+  const shades = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.04), glassesMat);
+  shades.position.set(0, 0.98, 0.13);
+  group.add(shades);
+
+  // Sleek hair
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.26), new THREE.MeshStandardMaterial({ color: 0x18181b }));
+  hair.position.y = 1.08;
+  group.add(hair);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.12, 0.38, 0.14);
+  const legL = new THREE.Mesh(legGeo, suitMat);
+  legL.position.set(-0.1, 0.2, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, suitMat);
+  legR.position.set(0.1, 0.2, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.BoxGeometry(0.11, 0.38, 0.11);
+  const armL = new THREE.Mesh(armGeo, suitMat);
+  armL.position.set(-0.24, 0.58, 0);
+  armL.castShadow = true;
+  const armR = new THREE.Mesh(armGeo, suitMat);
+  armR.position.set(0.24, 0.58, 0);
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Golden Faucet in right hand
+  const faucet = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 16), goldMat);
+  faucet.position.set(0, -0.16, 0.12);
+  faucet.rotation.y = Math.PI / 2;
+  armR.add(faucet);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.6, 0.6),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head };
+}
+
+/**
+ * 25. NEW ENEMY: Szalony Operator Paleciaka B4
+ */
+export function createSztaplarEnemyModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const overallMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 }); // Heavy orange overalls
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+  const hardhatMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3 }); // Red hardhat
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
+
+  // Heavy-set Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.5, 0.28), overallMat);
+  body.position.y = 0.6;
+  body.castShadow = true;
+  group.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), skinMat);
+  head.position.y = 0.98;
+  head.castShadow = true;
+  group.add(head);
+
+  // Heavy Red Industrial Hardhat
+  const hardhat = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 16), hardhatMat);
+  hardhat.position.y = 1.1;
+  group.add(hardhat);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.15, 0.38, 0.16);
+  const legL = new THREE.Mesh(legGeo, overallMat);
+  legL.position.set(-0.12, 0.2, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, overallMat);
+  legR.position.set(0.12, 0.2, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms holding Steering Handle / Pallet Jack Bar
+  const armGeo = new THREE.BoxGeometry(0.13, 0.38, 0.13);
+  const armL = new THREE.Mesh(armGeo, overallMat);
+  armL.position.set(-0.28, 0.58, 0.08);
+  armL.rotation.x = -0.5;
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, overallMat);
+  armR.position.set(0.28, 0.58, 0.08);
+  armR.rotation.x = -0.5;
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Heavy Pallet Jack Control Handle
+  const handleBar = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.03, 8, 16), wheelMat);
+  handleBar.position.set(0, 0.5, 0.22);
+  handleBar.rotation.x = Math.PI / 2;
+  group.add(handleBar);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 0.7),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  return { group, legL, legR, armL, armR, head };
+}
+
+/**
+ * 26. Spray Graffiti Decal ("Arkadiusz, byłem tu")
+ */
+export function createSprayGraffitiDecal(text: string = "Arkadiusz, byłem tu"): THREE.Mesh {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  // Transparent background
+  ctx.clearRect(0, 0, 512, 128);
+
+  // Spray paint splatter effects
+  ctx.fillStyle = '#f59e0b';
+  for (let i = 0; i < 150; i++) {
+    const rx = Math.random() * 480 + 16;
+    const ry = Math.random() * 100 + 14;
+    const r = Math.random() * 3 + 1;
+    ctx.beginPath();
+    ctx.arc(rx, ry, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Neon Spray Text
+  ctx.font = 'bold 36px "Impact", "Arial Black", sans-serif';
+  ctx.fillStyle = '#38bdf8';
+  ctx.shadowColor = '#f59e0b';
+  ctx.shadowBlur = 12;
+  ctx.fillText(text, 20, 72);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.92,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), mat);
+  return mesh;
+}
+
+/**
+ * 27. Chalk Body Outline Crime Scene Decal ("Rudy. Rudy Śmierdziuch")
+ */
+export function createCrimeSceneBodyOutlineDecal(): THREE.Group {
+  const group = new THREE.Group();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 512, 512);
+
+  // Crime Scene Yellow Caution Tape Border
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(10, 10, 492, 12);
+  ctx.fillRect(10, 490, 492, 12);
+  ctx.fillRect(10, 10, 12, 492);
+  ctx.fillRect(490, 10, 12, 492);
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 10px sans-serif';
+  for (let x = 20; x < 480; x += 60) {
+    ctx.fillText('CRIME SCENE', x, 20);
+    ctx.fillText('CRIME SCENE', x, 500);
+  }
+
+  // White Chalk Human Body Silhouette
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  // Head
+  ctx.arc(256, 100, 36, 0, Math.PI * 2);
+  // Torso & Arms & Legs Spread
+  ctx.moveTo(256, 136);
+  ctx.lineTo(256, 280);
+  // Left Arm
+  ctx.moveTo(256, 170);
+  ctx.lineTo(160, 220);
+  ctx.lineTo(130, 290);
+  // Right Arm
+  ctx.moveTo(256, 170);
+  ctx.lineTo(352, 220);
+  ctx.lineTo(380, 280);
+  // Left Leg
+  ctx.moveTo(256, 280);
+  ctx.lineTo(180, 420);
+  ctx.lineTo(150, 460);
+  // Right Leg
+  ctx.moveTo(256, 280);
+  ctx.lineTo(330, 420);
+  ctx.lineTo(360, 460);
+  ctx.stroke();
+
+  // White Chalk Label
+  ctx.font = 'bold 24px "Segoe UI", sans-serif';
+  ctx.fillStyle = '#ef4444';
+  ctx.textAlign = 'center';
+  ctx.fillText('RUDY. RUDY ŚMIERDZIUCH', 256, 440);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.88,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const decalMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.8), mat);
+  decalMesh.rotation.x = -Math.PI / 2;
+  decalMesh.position.y = 0.02;
+
+  group.add(decalMesh);
+  return group;
+}
+
+/**
+ * 28. ADDITIONAL BOSS: Król-Leto (Dyrektor Generalny)
+ * Imposing Boss with royal crown, suit, and lethal Disciplinary Discharge folder!
+ */
+export function createKrolLetoBossModel(): {
+  group: THREE.Group;
+  legL: THREE.Mesh;
+  legR: THREE.Mesh;
+  armL: THREE.Mesh;
+  armR: THREE.Mesh;
+  head: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+
+  const suitMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 }); // Obsidian Tuxedo Suit
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.95, roughness: 0.1 }); // Royal Crown & Gold Trim
+  const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3 }); // Red Tie & Disciplinary Folder
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xfbd0b0, roughness: 0.4 });
+  const glassesMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xdc2626, emissiveIntensity: 0.8 }); // Glowing Red Glasses
+
+  // Imposing Tall Body (Scale 1.3x)
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.28), suitMat);
+  body.position.y = 0.78;
+  body.castShadow = true;
+  group.add(body);
+
+  // White Shirt Front & Red Tie
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.58, 0.02), shirtMat);
+  shirt.position.set(0, 0.78, 0.141);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.03), redMat);
+  tie.position.set(0, 0.76, 0.15);
+  group.add(shirt, tie);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), skinMat);
+  head.position.y = 1.25;
+  head.castShadow = true;
+  group.add(head);
+
+  // Glowing Red Boss Eyewear
+  const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.05), glassesMat);
+  glasses.position.set(0, 1.28, 0.16);
+  group.add(glasses);
+
+  // ROYAL CROWN (Król-Leto)
+  const crownGroup = new THREE.Group();
+  crownGroup.position.set(0, 1.48, 0);
+
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 16), goldMat);
+  crownGroup.add(crownBase);
+
+  // 5 Spikes on Crown
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 8), goldMat);
+    spike.position.set(Math.cos(angle) * 0.15, 0.08, Math.sin(angle) * 0.15);
+    crownGroup.add(spike);
+  }
+  group.add(crownGroup);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.16, 0.5, 0.18);
+  const legL = new THREE.Mesh(legGeo, suitMat);
+  legL.position.set(-0.14, 0.25, 0);
+  legL.castShadow = true;
+  const legR = new THREE.Mesh(legGeo, suitMat);
+  legR.position.set(0.14, 0.25, 0);
+  legR.castShadow = true;
+  group.add(legL, legR);
+
+  // Arms
+  const armGeo = new THREE.BoxGeometry(0.14, 0.5, 0.14);
+  const armL = new THREE.Mesh(armGeo, suitMat);
+  armL.position.set(-0.33, 0.78, 0);
+  armL.castShadow = true;
+
+  const armR = new THREE.Mesh(armGeo, suitMat);
+  armR.position.set(0.33, 0.78, 0);
+  armR.castShadow = true;
+  group.add(armL, armR);
+
+  // Right Hand Holds "DYSCYPLINARKA" Lethal Red Document Folder
+  const folder = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.42, 0.06), redMat);
+  folder.position.set(0, -0.22, 0.14);
+  folder.rotation.y = -0.3;
+
+  // Folder label "DYSCYPLINARKA"
+  const folderLabel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.14, 0.07),
+    new THREE.MeshBasicMaterial({ color: 0xfef08a })
+  );
+  folder.add(folderLabel);
+  armR.add(folder);
+
+  // Contact Shadow
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.8, 0.8),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
+
+  group.scale.setScalar(1.25);
+  return { group, legL, legR, armL, armR, head };
+}
+

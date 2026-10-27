@@ -72,29 +72,95 @@ class MaxFlizScene extends xb.Script {
       }
     }
 
-    const tempProjVec = new THREE.Vector3();
+    interface ActiveToast {
+      element: HTMLElement;
+      worldPos: THREE.Vector3;
+      type: string;
+      age: number;
+      maxAge: number;
+    }
+    const activeToasts: ActiveToast[] = [];
+
     const spawnFloatingToast = (
       text: string,
       x: number,
       y: number,
       z: number,
-      type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' = 'points'
+      type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points'
     ) => {
       const popupsLayer = document.getElementById('floating-popups-layer');
       if (!popupsLayer) return;
-      tempProjVec.set(x, y, z);
-      tempProjVec.project(camera);
-      const sx = (tempProjVec.x * 0.5 + 0.5) * window.innerWidth;
-      const sy = (-(tempProjVec.y * 0.5) + 0.5) * window.innerHeight;
+
       const toast = document.createElement('div');
       toast.className = `floating-score-toast ${type}`;
       toast.textContent = text;
-      toast.style.left = `${Math.round(sx)}px`;
-      toast.style.top = `${Math.round(sy)}px`;
+      toast.style.position = 'absolute';
+      toast.style.willChange = 'transform, top, left, opacity';
       popupsLayer.appendChild(toast);
-      setTimeout(() => {
-        toast.remove();
-      }, 1500);
+
+      const duration = type === 'enemy_shout' ? 4.5 : 1.6;
+
+      activeToasts.push({
+        element: toast,
+        worldPos: new THREE.Vector3(x, y, z),
+        type,
+        age: 0,
+        maxAge: duration,
+      });
+    };
+
+    (this as any)._updateToasts = (dt: number) => {
+      const tempVec = new THREE.Vector3();
+      const screenW = window.innerWidth;
+      const screenH = window.innerHeight;
+
+      for (let i = activeToasts.length - 1; i >= 0; i--) {
+        const t = activeToasts[i];
+        t.age += dt;
+
+        if (t.age >= t.maxAge) {
+          t.element.remove();
+          activeToasts.splice(i, 1);
+          continue;
+        }
+
+        // Float upward in 3D world space over time
+        const floatSpeed = t.type === 'enemy_shout' ? 0.22 : 0.8;
+        t.worldPos.y += dt * floatSpeed;
+
+        // Project 3D world pos to 2D screen coordinates
+        tempVec.copy(t.worldPos);
+        tempVec.project(camera);
+
+        // Hide if behind camera (z > 1) or far off screen
+        if (
+          tempVec.z > 1.0 ||
+          tempVec.x < -1.3 ||
+          tempVec.x > 1.3 ||
+          tempVec.y < -1.3 ||
+          tempVec.y > 1.3
+        ) {
+          t.element.style.display = 'none';
+          continue;
+        }
+
+        t.element.style.display = 'flex';
+        const sx = (tempVec.x * 0.5 + 0.5) * screenW;
+        const sy = (-(tempVec.y * 0.5) + 0.5) * screenH;
+
+        t.element.style.left = `${Math.round(sx)}px`;
+        t.element.style.top = `${Math.round(sy)}px`;
+
+        // Smooth opacity fade in & out
+        const progress = t.age / t.maxAge;
+        let opacity = 1;
+        if (progress < 0.08) {
+          opacity = progress / 0.08;
+        } else if (progress > 0.82) {
+          opacity = (1 - progress) / 0.18;
+        }
+        t.element.style.opacity = opacity.toFixed(2);
+      }
     };
 
     const showPerkDropBanner = (name: string, icon: string, desc: string, color: string) => {
@@ -807,6 +873,7 @@ class MaxFlizScene extends xb.Script {
     if (this.engine) {
       this.engine.update(dt);
     }
+    (this as any)._updateToasts?.(dt);
   }
 
   onSelectEnd(event: xb.SelectEvent) {
