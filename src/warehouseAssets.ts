@@ -2878,11 +2878,11 @@ export function createSprayGraffitiDecal(text: string = "Arkadiusz, byłem tu"):
   }
 
   // Neon Spray Text
-  ctx.font = 'bold 36px "Impact", "Arial Black", sans-serif';
+  ctx.font = 'bold 52px "Impact", "Arial Black", sans-serif';
   ctx.fillStyle = '#38bdf8';
-  ctx.shadowColor = '#f59e0b';
-  ctx.shadowBlur = 12;
-  ctx.fillText(text, 20, 72);
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 25;
+  ctx.fillText(text, 20, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -2902,7 +2902,7 @@ export function createSprayGraffitiDecal(text: string = "Arkadiusz, byłem tu"):
 /**
  * 27. Chalk Body Outline Crime Scene Decal ("Rudy. Rudy Śmierdziuch")
  */
-export function createCrimeSceneBodyOutlineDecal(): THREE.Group {
+export function createCrimeSceneBodyOutlineDecal(label: string = 'KURIER'): THREE.Group {
   const group = new THREE.Group();
 
   const canvas = document.createElement('canvas');
@@ -2925,6 +2925,11 @@ export function createCrimeSceneBodyOutlineDecal(): THREE.Group {
     ctx.fillText('CRIME SCENE', x, 20);
     ctx.fillText('CRIME SCENE', x, 500);
   }
+
+  // Label text next to the outline
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 24px "Segoe UI", sans-serif';
+  ctx.fillText(label, 300, 420);
 
   // White Chalk Human Body Silhouette
   ctx.strokeStyle = '#f8fafc';

@@ -70,7 +70,7 @@ export interface GameCallbacks {
   onGameOver: (reason: string) => void;
   onBossUpdate?: (name: string, hp: number, maxHp: number, visible: boolean) => void;
   onPerksUpdate?: (perks: ActivePerks) => void;
-  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout') => void;
+  onFloatingText?: (text: string, x: number, y: number, z: number, type?: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout', metadata?: any) => void;
   onPerkDropBanner?: (name: string, icon: string, desc: string, color: string) => void;
 }
 
@@ -895,7 +895,7 @@ export class MaxFlizGameEngine {
     });
   }
 
-  private addKurierEnemy(id: string, x: number, minX: number, maxX: number, name = 'Szybki Kurier z Paczką Calacatta') {
+  private addKurierEnemy(id: string, x: number, minX: number, maxX: number, name = 'Rudy z DPD od Johnny Walker') {
     const built = createKurierEnemyModel();
     built.group.position.set(x, 0.4, minX);
     this.levelRoot.add(built.group);
@@ -1082,9 +1082,10 @@ export class MaxFlizGameEngine {
     worldX: number,
     worldY: number,
     worldZ: number,
-    type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points'
+    type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points',
+    metadata?: any
   ) {
-    this.callbacks.onFloatingText?.(text, worldX, worldY, worldZ, type);
+    this.callbacks.onFloatingText?.(text, worldX, worldY, worldZ, type, metadata);
   }
 
 
@@ -1222,12 +1223,14 @@ export class MaxFlizGameEngine {
     this.addForkliftHazard('forklift_1', -24, 20, 0, 4.4, 0xf59e0b);
 
     // Spray Graffiti & Crime Scene Chalk Outline Decals
-    const spray1 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
-    spray1.position.set(-12, 1.8, -12.7);
+    const spray1 = createSprayGraffitiDecal('Arkadiusz tu był');
+    spray1.position.set(-5, 2.5, -12.8);
+    spray1.scale.setScalar(2.0);
     this.levelRoot.add(spray1);
 
-    const crime1 = createCrimeSceneBodyOutlineDecal();
-    crime1.position.set(-30, 0.02, -10.5);
+    const crime1 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
+    crime1.position.set(-15, 0.05, 10.5);
+    crime1.scale.setScalar(2.2);
     this.levelRoot.add(crime1);
 
     // Expanded Dense Roster of Enemies on Level 1
@@ -1352,12 +1355,14 @@ export class MaxFlizGameEngine {
     this.addEasterEgg('egg_throne_1', 30, 0.05, -9, 'Złoty Tron Prezesa z 24k Złotem', 'throne', 600);
 
     // Decals
-    const spray2 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
-    spray2.position.set(16, 2.2, -13.7);
+    const spray2 = createSprayGraffitiDecal('Arkadiusz tu był');
+    spray2.position.set(0, 3.2, -13.8);
+    spray2.scale.setScalar(2.2);
     this.levelRoot.add(spray2);
 
-    const crime2 = createCrimeSceneBodyOutlineDecal();
-    crime2.position.set(-34, 0.02, 10.0);
+    const crime2 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
+    crime2.position.set(10, 0.05, 11.0);
+    crime2.scale.setScalar(2.5);
     this.levelRoot.add(crime2);
 
     // Dense Enemies in Showroom
@@ -1414,12 +1419,14 @@ export class MaxFlizGameEngine {
     this.levelRoot.add(backWall);
 
     // Decals Level 3
-    const spray3 = createSprayGraffitiDecal('Arkadiusz, byłem tu');
-    spray3.position.set(0, 2.5, -15.7);
+    const spray3 = createSprayGraffitiDecal('Arkadiusz tu był');
+    spray3.position.set(5, 3.5, -15.8);
+    spray3.scale.setScalar(2.5);
     this.levelRoot.add(spray3);
 
-    const crime3 = createCrimeSceneBodyOutlineDecal();
-    crime3.position.set(-38, 0.02, 12.0);
+    const crime3 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
+    crime3.position.set(-25, 0.05, 13.0);
+    crime3.scale.setScalar(2.8);
     this.levelRoot.add(crime3);
 
     // Ominous Warning Neon Sign
@@ -1894,11 +1901,10 @@ export class MaxFlizGameEngine {
         "Tarcza BHP w gotowości!"
       ],
       kurier: [
-        "Załatwię Johnny Walkera tanio!",
-        "Rudy z DPD z paczką Johnny Walker!",
-        "Johnny Walker za pół ceny od Rudego!",
-        "Dostawa DPD od Rudego z DPD!",
-        "Paczka ekspresowa DPD dla VIP!"
+        "Dostawa DPD od Rudego z DPD! Załatwię Johnny Walkera tanio",
+        "Paczka ekspresowa DPD dla VIP! Załatwię Johnny Walkera tanio",
+        "Paczka od Rudego! Załatwię Johnny Walkera tanio",
+        "Johnny Walker Express u drzwi! Załatwię Johnny Walkera tanio"
       ],
       przedstawiciel_włoski: [
         "Mamma mia, armatura de lux!",
@@ -1922,7 +1928,8 @@ export class MaxFlizGameEngine {
         "ZWALNIAM CIĘ DYSCYPLINARNIE!",
         "Dyscyplinarka w trybie natychmiastowym!",
         "Oddawaj kask BHP i przepustkę!",
-        "Moja decyzja o zwolnieniu jest OSTATECZNA!"
+        "Moja decyzja o zwolnieniu jest OSTATECZNA!",
+        "Błąd w WZ-tce? To koniec Twojej kariery!"
       ]
     };
 
@@ -1953,7 +1960,7 @@ export class MaxFlizGameEngine {
         const quotes = ENEMY_QUOTES[e.type] || ["Z drogi!"];
         const quote = quotes[Math.floor(Math.random() * quotes.length)];
         e.shoutText = quote;
-        this.emitFloatingToast(quote, e.x, e.y + 1.25, e.z, 'enemy_shout');
+        this.emitFloatingToast(quote, e.x, e.y + 1.25, e.z, 'enemy_shout', { enemyType: e.type });
       }
 
       // Special movement per type
@@ -2196,7 +2203,7 @@ export class MaxFlizGameEngine {
             this.sayQuote('Kask BHP zamortyzował DYSCYPLINARKĘ Króla-Leto!');
             this.emitFloatingToast('🛡️ BLOK DYSCYPLINARKI!', this.playerPos.x, this.playerPos.y + 1, this.playerPos.z, 'perk');
           } else {
-            this.takeDamage('🚨 ZWOLNIENIE DYSCYPLINARNE NA HITA OD KRÓLA-LETO!');
+            this.takeDamage('🚨 ZWOLNIENIE DYSCYPLINARNE NA HITA OD KRÓLA-LETO!', 99);
           }
         } else {
           this.takeDamage('Trafiło Cię wezwanie wyjaśniające od Walczaka!');
@@ -2846,7 +2853,7 @@ export class MaxFlizGameEngine {
     }
   }
 
-  private takeDamage(reason: string) {
+  private takeDamage(reason: string, amount: number = 1) {
     if (this.invulnerableTimer > 0) return;
 
     if (this.marcinReclamationTimer > 0) {
@@ -2865,7 +2872,7 @@ export class MaxFlizGameEngine {
       return;
     }
 
-    this.hp--;
+    this.hp = Math.max(0, this.hp - amount);
     this.invulnerableTimer = 1.8;
     sound.playHit();
     this.callbacks.onHpUpdate(this.hp, this.maxHp);

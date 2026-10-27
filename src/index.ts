@@ -81,13 +81,64 @@ class MaxFlizScene extends xb.Script {
     }
     const activeToasts: ActiveToast[] = [];
 
+    const createDialogueCard = (text: string, enemyType: string) => {
+      const container = document.getElementById('dialogue-box-container');
+      if (!container) return;
+
+      const card = document.createElement('div');
+      card.className = `dialogue-box-card border-${enemyType}`;
+      
+      const meta = getEnemyMeta(enemyType);
+      
+      card.innerHTML = `
+        <div class="dialogue-box-avatar">${meta.avatar}</div>
+        <div class="dialogue-box-content">
+          <div class="dialogue-box-header">
+            <span class="dialogue-box-name">${meta.name}</span>
+            <span class="dialogue-box-role">${meta.role}</span>
+          </div>
+          <p class="dialogue-box-text">${text}</p>
+        </div>
+      `;
+
+      container.appendChild(card);
+
+      // Auto-remove with fade
+      setTimeout(() => {
+        card.classList.add('fading-out');
+        setTimeout(() => card.remove(), 500);
+      }, 4000);
+    };
+
+    const getEnemyMeta = (type: string) => {
+      const metaMap: Record<string, { name: string, role: string, avatar: string }> = {
+        kurier: { name: 'Rudy z DPD', role: 'Johnny Walker Express', avatar: '🚚' },
+        walczak: { name: 'Walczak', role: 'Były Kierownik', avatar: '👔' },
+        krol_leto: { name: 'Król-Leto', role: 'Dyrektor Generalny', avatar: '👑' },
+        architect: { name: 'Architektka', role: 'Design & Beż', avatar: '🎨' },
+        customer: { name: 'Klient', role: 'Awantura o Fugi', avatar: '📑' },
+        handlowiec: { name: 'Handlowiec', role: 'Rabat 3%', avatar: '💼' },
+        monter: { name: 'Monter', role: 'Glazurnik Pro', avatar: '🪚' },
+        inspector: { name: 'Inspektor', role: 'BHP / PIP', avatar: '📋' },
+        sztaplar_szalony: { name: 'Zdzichu', role: 'Mistrz Sztaplarki', avatar: '🚜' },
+        piorun_dron: { name: 'PIORUN', role: 'Dron AI', avatar: '⚡' },
+      };
+      return metaMap[type] || { name: 'Pracownik', role: 'Magazyn', avatar: '👷' };
+    };
+
     const spawnFloatingToast = (
       text: string,
       x: number,
       y: number,
       z: number,
-      type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points'
+      type: 'points' | 'vip' | 'easter-egg' | 'damage' | 'perk' | 'combo' | 'enemy_shout' = 'points',
+      metadata?: any
     ) => {
+      if (type === 'enemy_shout') {
+        createDialogueCard(text, metadata?.enemyType || 'customer');
+        return;
+      }
+
       const popupsLayer = document.getElementById('floating-popups-layer');
       if (!popupsLayer) return;
 
@@ -98,7 +149,7 @@ class MaxFlizScene extends xb.Script {
       toast.style.willChange = 'transform, top, left, opacity';
       popupsLayer.appendChild(toast);
 
-      const duration = type === 'enemy_shout' ? 4.5 : 1.6;
+      const duration = 1.6;
 
       activeToasts.push({
         element: toast,
@@ -187,8 +238,8 @@ class MaxFlizScene extends xb.Script {
       camera,
       (document.getElementById('game-canvas-container') || document.body) as HTMLElement,
       {
-        onFloatingText: (text, x, y, z, type) => {
-          spawnFloatingToast(text, x, y, z, type);
+        onFloatingText: (text, x, y, z, type, metadata) => {
+          spawnFloatingToast(text, x, y, z, type, metadata);
         },
         onPerkDropBanner: (name, icon, desc, color) => {
           showPerkDropBanner(name, icon, desc, color);
