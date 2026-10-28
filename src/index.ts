@@ -11,10 +11,12 @@ import {
 } from './firebase.ts';
 import { MaxFlizGameEngine } from './game.ts';
 import { sound } from './sound.ts';
+import { IntroCutsceneManager } from './introCutscene.ts';
 import { CharacterId } from './types.ts';
 
 class MaxFlizScene extends xb.Script {
   private engine!: MaxFlizGameEngine;
+  private cutscene!: IntroCutsceneManager;
   private selectedCharId: CharacterId = 'marcin';
   private selectedLevelId: number = 1;
   private lastScore: number = 0;
@@ -720,6 +722,13 @@ class MaxFlizScene extends xb.Script {
     document.getElementById('btn-top-pause')?.addEventListener('click', handlePause);
     document.getElementById('btn-pause')?.addEventListener('click', handlePause);
 
+    this.cutscene = new IntroCutsceneManager(xb.core.scene, this.camera, {
+      onComplete: () => {
+        titleScreen.classList.remove('hidden');
+        this.engine.startTitle();
+      },
+    });
+
     const storyModal = document.getElementById('story-intro-modal');
     const btnOpenStory = document.getElementById('btn-open-story-modal');
     const btnCloseStory = document.getElementById('btn-close-story');
@@ -758,8 +767,9 @@ class MaxFlizScene extends xb.Script {
     };
 
     btnOpenStory?.addEventListener('click', () => {
-      storyModal?.classList.remove('hidden');
-      updateStorySlides(0);
+      titleScreen.classList.add('hidden');
+      storyModal?.classList.add('hidden');
+      this.cutscene.start();
     });
 
     btnCloseStory?.addEventListener('click', () => {
@@ -909,8 +919,8 @@ class MaxFlizScene extends xb.Script {
     this.setupTouchControls();
 
     this.engine.startTitle();
-    storyModal?.classList.remove('hidden');
-    updateStorySlides(0);
+    // Launch animated 3D cutscene movie automatically on initial load!
+    this.cutscene.start();
   }
 
   private setupTouchControls() {
@@ -1014,7 +1024,9 @@ class MaxFlizScene extends xb.Script {
 
   update() {
     const dt = xb.getDeltaTime();
-    if (this.engine) {
+    if (this.cutscene && this.cutscene.isRunning()) {
+      this.cutscene.update(dt);
+    } else if (this.engine) {
       this.engine.update(dt);
     }
     (this as any)._updateToasts?.(dt);
