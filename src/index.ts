@@ -12,11 +12,13 @@ import {
 import { MaxFlizGameEngine } from './game.ts';
 import { sound } from './sound.ts';
 import { IntroCutsceneManager } from './introCutscene.ts';
+import { PixelIntroManager } from './pixelIntro.ts';
 import { CharacterId } from './types.ts';
 
 class MaxFlizScene extends xb.Script {
   private engine!: MaxFlizGameEngine;
   private cutscene!: IntroCutsceneManager;
+  private pixelIntro!: PixelIntroManager;
   private selectedCharId: CharacterId = 'marcin';
   private selectedLevelId: number = 1;
   private lastScore: number = 0;
@@ -434,19 +436,23 @@ class MaxFlizScene extends xb.Script {
           touchControls.classList.add('hidden');
           bossHudBar?.classList.add('hidden');
         },
-        onBossUpdate: (name, hp, maxHp, visible) => {
+        onBossUpdate: (name, hp, maxHp, visible, phase) => {
           if (!bossHudBar || !bossNameElem || !bossHpTextElem || !bossHpFillElem) return;
           if (visible && hp > 0) {
             bossHudBar.classList.remove('hidden');
-            bossNameElem.textContent = `👔 ${name}`;
+            bossHudBar.classList.toggle('phase-2', phase === 2);
+            bossNameElem.textContent = phase === 2 ? `💢 ${name} (SZAŁ!)` : `👔 ${name}`;
             bossHpTextElem.textContent = `${hp} / ${maxHp}`;
             bossHpFillElem.style.width = `${(hp / maxHp) * 100}%`;
           } else {
             bossHudBar.classList.add('hidden');
+            bossHudBar.classList.remove('phase-2');
           }
         },
       }
     );
+
+    this.engine.threeRenderer = xb.core.renderer as THREE.WebGLRenderer;
 
     const updateCharacterUI = (id: CharacterId) => {
       this.selectedCharId = id;
@@ -703,6 +709,22 @@ class MaxFlizScene extends xb.Script {
     document.getElementById('btn-top-camera')?.addEventListener('click', () => {
       this.engine.toggleCameraMode();
     });
+    document.getElementById('btn-top-zoom-in')?.addEventListener('click', () => {
+      this.engine.zoomInCamera();
+    });
+    document.getElementById('btn-top-zoom-out')?.addEventListener('click', () => {
+      this.engine.zoomOutCamera();
+    });
+
+    document.getElementById('btn-minimap-zoom-in')?.addEventListener('click', () => {
+      this.engine.zoomInMinimap();
+    });
+    document.getElementById('btn-minimap-zoom-out')?.addEventListener('click', () => {
+      this.engine.zoomOutMinimap();
+    });
+    document.getElementById('btn-minimap-toggle')?.addEventListener('click', () => {
+      this.engine.toggleMinimap();
+    });
 
     const topSoundIcon = document.getElementById('top-sound-icon');
     const soundIcon = document.getElementById('sound-icon');
@@ -726,6 +748,16 @@ class MaxFlizScene extends xb.Script {
       onComplete: () => {
         titleScreen.classList.remove('hidden');
         this.engine.startTitle();
+      },
+    });
+
+    this.pixelIntro = new PixelIntroManager({
+      onComplete: () => {
+        titleScreen.classList.remove('hidden');
+        this.engine.startTitle();
+      },
+      onStartGame: () => {
+        doStartGame();
       },
     });
 
@@ -769,7 +801,7 @@ class MaxFlizScene extends xb.Script {
     btnOpenStory?.addEventListener('click', () => {
       titleScreen.classList.add('hidden');
       storyModal?.classList.add('hidden');
-      this.cutscene.start();
+      this.pixelIntro.start();
     });
 
     btnCloseStory?.addEventListener('click', () => {
@@ -919,8 +951,8 @@ class MaxFlizScene extends xb.Script {
     this.setupTouchControls();
 
     this.engine.startTitle();
-    // Launch animated 3D cutscene movie automatically on initial load!
-    this.cutscene.start();
+    // Launch animated 16-bit pixel art intro movie automatically on initial load!
+    this.pixelIntro.start();
   }
 
   private setupTouchControls() {
@@ -1024,10 +1056,16 @@ class MaxFlizScene extends xb.Script {
 
   update() {
     const dt = xb.getDeltaTime();
-    if (this.cutscene && this.cutscene.isRunning()) {
+    if (this.pixelIntro && this.pixelIntro.isRunning()) {
+      // Pixel intro updates internally via rAF, but keep time in sync
+    } else if (this.cutscene && this.cutscene.isRunning()) {
       this.cutscene.update(dt);
     } else if (this.engine) {
       this.engine.update(dt);
+      const minimapCanvas = document.getElementById('minimap-canvas') as HTMLCanvasElement | null;
+      if (minimapCanvas) {
+        this.engine.renderMinimap(minimapCanvas);
+      }
     }
     (this as any)._updateToasts?.(dt);
   }

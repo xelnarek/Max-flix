@@ -80,7 +80,9 @@ export interface EnemyItem {
   dir: number;
   hp: number;
   maxHp: number;
-  state: 'patrol' | 'chase' | 'stunned' | 'defeated' | 'charging';
+  state: 'patrol' | 'chase' | 'searching' | 'stunned' | 'defeated' | 'charging';
+  lastKnownPlayerPos?: { x: number; z: number } | null;
+  searchTimer?: number;
   stunTimer: number;
   shoutTimer: number;
   shoutText: string;
@@ -96,6 +98,9 @@ export interface EnemyItem {
   chargeTimer?: number;
   shieldActive?: boolean;
   onFireTimer?: number;
+  alerted?: boolean;
+  hpBar?: any;
+  hpFill?: any;
 }
 
 export interface HazardItem {
