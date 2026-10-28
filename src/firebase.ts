@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import {
+  initializeFirestore,
   getFirestore,
   collection,
   doc,
@@ -63,10 +64,19 @@ const normalizeLeaderboardEntry = (
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore targeting the specific provisioned database ID
+// Initialize Firestore targeting the specific provisioned database ID with forced long polling.
+// This prevents the 10-second backend timeout error in iframe, sandbox, and Cloud Run proxy environments.
 export const db = (firebaseConfig as any).firestoreDatabaseId
-  ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
-  : getFirestore(app);
+  ? initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+      },
+      (firebaseConfig as any).firestoreDatabaseId
+    )
+  : initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
@@ -186,15 +196,18 @@ export async function ensureLeaderboardServices(): Promise<void> {
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
     const probeDoc = doc(db, 'leaderboard', 'probe-connection');
-    await getDocFromServer(probeDoc);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Connection check timeout')), 6000)
+    );
+    await Promise.race([getDocFromServer(probeDoc), timeoutPromise]);
     return true;
   } catch (error: unknown) {
     const err = error as { code?: string; message?: string };
     if (err && (err.code === 'not-found' || err.code === 'permission-denied')) {
       return true;
     }
-    if (err && err.message && err.message.includes('offline')) {
-      console.warn('Firestore offline mode active.');
+    if (err && err.message && (err.message.includes('offline') || err.message.includes('timeout') || err.message.includes('Backend') || err.message.includes('backend'))) {
+      console.warn('Firestore resilient mode active:', err.message);
     } else {
       handleFirestoreError(error, OperationType.GET, 'leaderboard/probe-connection');
     }

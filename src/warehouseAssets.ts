@@ -3,6 +3,9 @@ import { CharacterDef } from './types.ts';
 
 // Cached procedural textures
 let floorTexture: THREE.CanvasTexture | null = null;
+let showroomMarbleTexture: THREE.CanvasTexture | null = null;
+let showroomWallTexture: THREE.CanvasTexture | null = null;
+let terminalGraniteTexture: THREE.CanvasTexture | null = null;
 let maxFlizSignTexture: THREE.CanvasTexture | null = null;
 let tileBoxTexture: THREE.CanvasTexture | null = null;
 let marbleTextures: Record<string, THREE.CanvasTexture> = {};
@@ -123,6 +126,440 @@ export function getWallTexture(): THREE.CanvasTexture {
   wallTexture.wrapS = THREE.RepeatWrapping;
   wallTexture.wrapT = THREE.RepeatWrapping;
   return wallTexture;
+}
+
+/**
+ * 2b. Ultra-Luxury Calacatta Gold & Carrara Marble Floor (Showroom Sektor 2)
+ * High-end Italian porcelain stoneware with polished brass joints & warm ambient tone
+ */
+export function getShowroomMarbleFloorTexture(): THREE.CanvasTexture {
+  if (showroomMarbleTexture) return showroomMarbleTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // 1. Warm alabaster / ivory base
+  const bgGrad = ctx.createLinearGradient(0, 0, 1024, 1024);
+  bgGrad.addColorStop(0, '#fdfbf7');
+  bgGrad.addColorStop(0.5, '#f5efe6');
+  bgGrad.addColorStop(1, '#f9f6f0');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // 2. Large format 256x256 slabs (120x120 cm scale)
+  const tileSize = 256;
+  for (let x = 0; x < 1024; x += tileSize) {
+    for (let y = 0; y < 1024; y += tileSize) {
+      // Subtle porcelain tone variation per slab
+      const slabGrad = ctx.createRadialGradient(x + 128, y + 128, 20, x + 128, y + 128, 170);
+      slabGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+      slabGrad.addColorStop(0.85, 'rgba(240, 233, 222, 0.25)');
+      slabGrad.addColorStop(1, 'rgba(218, 207, 192, 0.35)');
+      ctx.fillStyle = slabGrad;
+      ctx.fillRect(x, y, tileSize, tileSize);
+    }
+  }
+
+  // 3. Organic Calacatta Gold & Grey Veining
+  const drawVein = (startX: number, startY: number, endX: number, endY: number, color: string, width: number) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    const midX = (startX + endX) / 2 + (Math.random() - 0.5) * 80;
+    const midY = (startY + endY) / 2 + (Math.random() - 0.5) * 80;
+    ctx.quadraticCurveTo(midX, midY, endX, endY);
+    ctx.stroke();
+
+    // Branching offshoot
+    if (Math.random() > 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(midX, midY);
+      ctx.quadraticCurveTo(
+        midX + (Math.random() - 0.5) * 60,
+        midY + (Math.random() - 0.5) * 60,
+        midX + (Math.random() - 0.5) * 110,
+        midY + (Math.random() - 0.5) * 110
+      );
+      ctx.stroke();
+    }
+  };
+
+  // Warm Gold veins
+  for (let i = 0; i < 16; i++) {
+    const sx = Math.random() * 1024;
+    const sy = Math.random() * 1024;
+    drawVein(sx, sy, sx + (Math.random() - 0.5) * 360, sy + (Math.random() - 0.5) * 360, 'rgba(212, 175, 55, 0.32)', 2.8);
+    drawVein(sx + 1, sy + 1, sx + (Math.random() - 0.5) * 280, sy + (Math.random() - 0.5) * 280, 'rgba(245, 158, 11, 0.18)', 1.4);
+  }
+
+  // Subtle Silver-Grey veins
+  for (let i = 0; i < 14; i++) {
+    const sx = Math.random() * 1024;
+    const sy = Math.random() * 1024;
+    drawVein(sx, sy, sx + (Math.random() - 0.5) * 300, sy + (Math.random() - 0.5) * 300, 'rgba(148, 163, 184, 0.28)', 2.0);
+  }
+
+  // 4. Central Decorative Inlay Runway (Nero Marquina & Gold Medallions)
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.fillRect(384, 0, 256, 1024);
+
+  // Gold borders of runner
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(384, 0, 256, 1024);
+
+  // Inlaid Gold Diamond Medallions
+  for (let y = 64; y < 1024; y += 128) {
+    ctx.save();
+    ctx.translate(512, y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
+    ctx.fillRect(-22, -22, 44, 44);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(-16, -16, 32, 32);
+    ctx.restore();
+  }
+
+  // Luxury Gold Showroom Inscription
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.save();
+  ctx.translate(512, 512);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('MAX-FLIZ SHOWROOM • STREFA WANNY & SPA', 0, -4);
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 15px "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('COLLEZIONE ITALIANA • CERAMICA DI LUSSO', 0, 20);
+  ctx.restore();
+
+  // 5. Polished Brass Joint Grid
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+  ctx.lineWidth = 4;
+  for (let x = 0; x <= 1024; x += tileSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 1024);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= 1024; y += tileSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(1024, y);
+    ctx.stroke();
+  }
+
+  // Brass cross spacers at tile corners
+  ctx.fillStyle = '#fef08a';
+  for (let x = 0; x <= 1024; x += tileSize) {
+    for (let y = 0; y <= 1024; y += tileSize) {
+      ctx.fillRect(x - 5, y - 5, 10, 10);
+    }
+  }
+
+  showroomMarbleTexture = new THREE.CanvasTexture(canvas);
+  showroomMarbleTexture.colorSpace = THREE.SRGBColorSpace;
+  showroomMarbleTexture.wrapS = THREE.RepeatWrapping;
+  showroomMarbleTexture.wrapT = THREE.RepeatWrapping;
+  return showroomMarbleTexture;
+}
+
+/**
+ * 2c. Architectural Warm Oak Slat Wall (Showroom Sektor 2)
+ */
+export function getShowroomWallTexture(): THREE.CanvasTexture {
+  if (showroomWallTexture) return showroomWallTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  // Warm ivory background
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, 512, 256);
+
+  // Vertical acoustic natural oak slats
+  for (let x = 0; x < 512; x += 16) {
+    // Slat shadow
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(x, 0, 3, 256);
+    // Warm natural oak wood face
+    const oakGrad = ctx.createLinearGradient(x + 3, 0, x + 15, 0);
+    oakGrad.addColorStop(0, '#c2905b');
+    oakGrad.addColorStop(0.5, '#deb887');
+    oakGrad.addColorStop(1, '#a6723e');
+    ctx.fillStyle = oakGrad;
+    ctx.fillRect(x + 3, 0, 13, 256);
+  }
+
+  // Warm LED cove strip at top & bottom
+  ctx.fillStyle = '#fef08a';
+  ctx.fillRect(0, 0, 512, 8);
+  ctx.fillRect(0, 248, 512, 8);
+
+  // Brushed brass showroom logo plaque
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.fillRect(160, 90, 192, 54);
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(160, 90, 192, 54);
+
+  ctx.fillStyle = '#d4af37';
+  ctx.font = 'bold 16px "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('MAX-FLIZ SHOWROOM', 256, 115);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText('GALERIA WNĘTRZ & ŁAZIENEK', 256, 132);
+
+  showroomWallTexture = new THREE.CanvasTexture(canvas);
+  showroomWallTexture.colorSpace = THREE.SRGBColorSpace;
+  showroomWallTexture.wrapS = THREE.RepeatWrapping;
+  showroomWallTexture.wrapT = THREE.RepeatWrapping;
+  return showroomWallTexture;
+}
+
+/**
+ * 2d. Heavy-Duty Logistics Terminal Granite Floor (Sektor 3)
+ */
+export function getTerminalGraniteFloorTexture(): THREE.CanvasTexture {
+  if (terminalGraniteTexture) return terminalGraniteTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // Dark flamed granite base
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Granite stone slabs 128x128
+  const tileSize = 128;
+  for (let x = 0; x < 1024; x += tileSize) {
+    for (let y = 0; y < 1024; y += tileSize) {
+      const v = (x * 17 + y * 23) % 20;
+      ctx.fillStyle = `rgb(${16 + v}, ${24 + v}, ${38 + v})`;
+      ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+    }
+  }
+
+  // Cyan glowing central AGV / Runway guide tracks
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+  ctx.fillRect(480, 0, 64, 1024);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(480, 0, 64, 1024);
+
+  // Glowing center dashed strip
+  ctx.strokeStyle = '#00f2fe';
+  ctx.lineWidth = 6;
+  ctx.setLineDash([24, 18]);
+  ctx.beginPath();
+  ctx.moveTo(512, 0);
+  ctx.lineTo(512, 1024);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // High-hazard docking chevrons
+  for (let y = 60; y < 1024; y += 180) {
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(60, y, 160, 24);
+    ctx.fillRect(804, y, 160, 24);
+  }
+
+  // Runway docking stencil
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 24px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.save();
+  ctx.translate(512, 512);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('TERMINAL EKSPEDYCJI • DOK B4 GŁÓWNY', 0, -4);
+  ctx.restore();
+
+  terminalGraniteTexture = new THREE.CanvasTexture(canvas);
+  terminalGraniteTexture.colorSpace = THREE.SRGBColorSpace;
+  terminalGraniteTexture.wrapS = THREE.RepeatWrapping;
+  terminalGraniteTexture.wrapT = THREE.RepeatWrapping;
+  return terminalGraniteTexture;
+}
+
+/**
+ * 2e. Luxury Raised Showroom Display Podium with Warm LED Cove Skirt
+ */
+export function createDisplayPodium(width = 3.4, depth = 2.2, height = 0.22): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'showroom_podium';
+
+  // White Carrara Marble Top Slab
+  const topMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    roughness: 0.12,
+    metalness: 0.1,
+  });
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), topMat);
+  slab.position.y = height / 2;
+  slab.castShadow = true;
+  slab.receiveShadow = true;
+
+  // Brushed Brass Edge Trim
+  const brassMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    metalness: 0.85,
+    roughness: 0.2,
+  });
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.04, 0.04, depth + 0.04), brassMat);
+  trim.position.y = height - 0.02;
+
+  // Recessed Warm LED Cove Light Skirt
+  const ledMat = new THREE.MeshBasicMaterial({
+    color: 0xfef08a,
+  });
+  const ledSkirt = new THREE.Mesh(new THREE.BoxGeometry(width - 0.1, 0.04, depth - 0.1), ledMat);
+  ledSkirt.position.y = 0.02;
+
+  group.add(slab, trim, ledSkirt);
+  return group;
+}
+
+/**
+ * 2f. Modern Architectural Glass Partition Screen with Brass Clamps
+ */
+export function createGlassPartition(width = 3.0, height = 2.5): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'glass_partition';
+
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x18181b,
+    metalness: 0.8,
+    roughness: 0.2,
+  });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0xe0f2fe,
+    metalness: 0.1,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.35,
+    side: THREE.DoubleSide,
+  });
+  const brassClampMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    metalness: 0.9,
+    roughness: 0.15,
+  });
+
+  // Vertical Posts
+  const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, height, 16), frameMat);
+  postL.position.set(-width / 2, height / 2, 0);
+  const postR = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, height, 16), frameMat);
+  postR.position.set(width / 2, height / 2, 0);
+
+  // Top header bar
+  const topBar = new THREE.Mesh(new THREE.BoxGeometry(width, 0.05, 0.05), frameMat);
+  topBar.position.set(0, height, 0);
+
+  // Translucent Tempered Glass Pane
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(width - 0.1, height - 0.15, 0.02), glassMat);
+  glass.position.set(0, height / 2, 0);
+
+  // Brass Mounting Clamps
+  [-width / 2 + 0.08, width / 2 - 0.08].forEach((cx) => {
+    [0.4, height - 0.4].forEach((cy) => {
+      const clamp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.06), brassClampMat);
+      clamp.position.set(cx, cy, 0);
+      group.add(clamp);
+    });
+  });
+
+  group.add(postL, postR, topBar, glass);
+  return group;
+}
+
+/**
+ * 2g. Large Sculptural Ceramic Planter with Lush Greenery
+ */
+export function createShowroomPlant(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'showroom_plant';
+
+  // White geometric ceramic pot
+  const potMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.1,
+    metalness: 0.05,
+  });
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.25, 0.75, 24), potMat);
+  pot.position.y = 0.375;
+  pot.castShadow = true;
+  group.add(pot);
+
+  // Dark organic potting soil
+  const soilMat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.9 });
+  const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.05, 24), soilMat);
+  soil.position.y = 0.74;
+  group.add(soil);
+
+  // 8 Sculpted Monstera / Ficus Leaves
+  const leafMat = new THREE.MeshStandardMaterial({
+    color: 0x15803d,
+    roughness: 0.25,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.6, 8), leafMat);
+    stem.position.set(0, 0.74, 0);
+    stem.rotation.y = angle;
+    stem.rotation.z = 0.5 + (i % 3) * 0.12;
+
+    const leafGeo = new THREE.SphereGeometry(0.22, 12, 8);
+    leafGeo.scale(0.8, 1.4, 0.08);
+    const leaf = new THREE.Mesh(leafGeo, leafMat);
+    leaf.position.set(0, 0.45, 0);
+    leaf.rotation.x = 0.4;
+    stem.add(leaf);
+    group.add(stem);
+  }
+
+  return group;
+}
+
+/**
+ * 2h. Overhead Track Lighting Rig with Directional Downlight Cones
+ */
+export function createTrackSpotlights(length = 6.0): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'track_spotlights';
+
+  const trackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 });
+  const spotMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+
+  // Black ceiling track
+  const track = new THREE.Mesh(new THREE.BoxGeometry(length, 0.08, 0.08), trackMat);
+  group.add(track);
+
+  // 4 Spot fixtures along the track
+  const numSpots = 4;
+  for (let i = 0; i < numSpots; i++) {
+    const sx = -length / 2 + (length / (numSpots + 1)) * (i + 1);
+    const spot = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.16, 16), spotMat);
+    spot.rotation.x = 0.25 * ((i % 2 === 0) ? 1 : -1);
+    spot.position.set(sx, -0.1, 0);
+
+    const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 16), glowMat);
+    bulb.position.y = -0.07;
+    spot.add(bulb);
+    group.add(spot);
+  }
+
+  return group;
 }
 
 /**

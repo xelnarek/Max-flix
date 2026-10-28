@@ -21,9 +21,47 @@ class MaxFlizScene extends xb.Script {
   private lastCoins: number = 0;
   private lastTimeSeconds: number = 0;
   private lastBossDefeated: boolean = false;
+  private camera!: THREE.PerspectiveCamera;
 
   init() {
     const camera = (xb.core.camera as THREE.PerspectiveCamera) || new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.camera = camera;
+
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const aspect = width / height;
+
+      if (this.camera) {
+        // Dynamic adaptive FOV: wider for mobile/portrait, optimized for tablet, cinematic for desktop
+        if (aspect < 0.75) {
+          this.camera.fov = 64;
+        } else if (aspect < 1.0) {
+          this.camera.fov = 58;
+        } else if (aspect < 1.35) {
+          this.camera.fov = 50;
+        } else {
+          this.camera.fov = 44;
+        }
+        this.camera.aspect = aspect;
+        this.camera.updateProjectionMatrix();
+      }
+
+      if (xb.core.renderer) {
+        const renderer = xb.core.renderer as THREE.WebGLRenderer;
+        if (typeof renderer.setSize === 'function') {
+          renderer.setSize(width, height, false);
+        }
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+        if (typeof renderer.setPixelRatio === 'function') {
+          renderer.setPixelRatio(dpr);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => setTimeout(handleResize, 150));
+    handleResize();
 
     const hudHeroName = document.getElementById('hud-hero-name')!;
     const hudHeroRole = document.getElementById('hud-hero-role')!;
@@ -174,7 +212,9 @@ class MaxFlizScene extends xb.Script {
       toast.className = `floating-score-toast ${type}`;
       toast.textContent = text;
       toast.style.position = 'absolute';
-      toast.style.willChange = 'transform, top, left, opacity';
+      toast.style.top = '0';
+      toast.style.left = '0';
+      toast.style.willChange = 'transform, opacity';
       popupsLayer.appendChild(toast);
 
       const duration = 1.6;
@@ -227,8 +267,7 @@ class MaxFlizScene extends xb.Script {
         const sx = (tempVec.x * 0.5 + 0.5) * screenW;
         const sy = (-(tempVec.y * 0.5) + 0.5) * screenH;
 
-        t.element.style.left = `${Math.round(sx)}px`;
-        t.element.style.top = `${Math.round(sy)}px`;
+        t.element.style.transform = `translate3d(${Math.round(sx)}px, ${Math.round(sy)}px, 0px) translate(-50%, -50%)`;
 
         // Smooth opacity fade in & out
         const progress = t.age / t.maxAge;

@@ -55,7 +55,14 @@ import {
   createSprayGraffitiDecal,
   createCrimeSceneBodyOutlineDecal,
   createKrolLetoBossModel,
+  createDisplayPodium,
+  createGlassPartition,
+  createShowroomPlant,
+  createTrackSpotlights,
   getFloorTexture,
+  getShowroomMarbleFloorTexture,
+  getShowroomWallTexture,
+  getTerminalGraniteFloorTexture,
   getHazardStripeTexture,
   getMaxFlizLogoTexture,
   getWallTexture,
@@ -111,6 +118,11 @@ export class MaxFlizGameEngine {
   private screenShakeIntensity = 0;
   private screenShakeTimer = 0;
   private cameraMode: 'iso' | 'close' = 'close';
+  private smoothCamY = 0.5;
+  private currentCamOffset = new THREE.Vector3(2.4, 4.0, 5.0);
+  private currentLookAt = new THREE.Vector3(0, 1.2, 0);
+  private bossCamZoom = 1.0;
+  private finishWarningTimer = 0;
   private dodgeCooldownTimer = 0;
   private targetRing!: THREE.Mesh;
 
@@ -429,12 +441,88 @@ export class MaxFlizGameEngine {
     this.rebuildPlayerMesh();
 
     if (levelId === 1) {
+      // Sektor 1: Industrial Warehouse B4
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0xcfe8ff);
+        this.ambientLight.intensity = 0.75;
+      }
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xbfe6ff);
+        this.hemiLight.groundColor.setHex(0x101827);
+        this.hemiLight.intensity = 1.45;
+      }
+      if (this.dirLight) {
+        this.dirLight.color.setHex(0xfff4d6);
+        this.dirLight.intensity = 3.6;
+      }
+      if (this.rimLight) {
+        this.rimLight.color.setHex(0x60a5fa);
+        this.rimLight.intensity = 1.2;
+      }
+      this.scene.background = new THREE.Color(0x07131d);
+      if (this.scene.fog instanceof THREE.Fog) {
+        this.scene.fog.color.setHex(0x091827);
+        this.scene.fog.near = 18;
+        this.scene.fog.far = 90;
+      }
       this.buildLevel1();
     } else if (levelId === 2) {
+      // Sektor 2: Prestigious Calacatta Gold Showroom - Bright & Warm Luxury
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0xfff5ea);
+        this.ambientLight.intensity = 1.25;
+      }
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xffeedd);
+        this.hemiLight.groundColor.setHex(0x3a2e22);
+        this.hemiLight.intensity = 1.7;
+      }
+      if (this.dirLight) {
+        this.dirLight.color.setHex(0xfffaec);
+        this.dirLight.intensity = 4.2;
+      }
+      if (this.rimLight) {
+        this.rimLight.color.setHex(0xfbbf24);
+        this.rimLight.intensity = 1.4;
+      }
+      this.scene.background = new THREE.Color(0x1b1928);
+      if (this.scene.fog instanceof THREE.Fog) {
+        this.scene.fog.color.setHex(0x221e30);
+        this.scene.fog.near = 28;
+        this.scene.fog.far = 115;
+      }
       this.buildLevel2();
     } else {
+      // Sektor 3: Baza Przeładunkowa & Terminal - Flamed Granite & Illuminated AGV Guidance
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0xdbeafe);
+        this.ambientLight.intensity = 0.85;
+      }
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0x93c5fd);
+        this.hemiLight.groundColor.setHex(0x0c1322);
+        this.hemiLight.intensity = 1.5;
+      }
+      if (this.dirLight) {
+        this.dirLight.color.setHex(0xffedd5);
+        this.dirLight.intensity = 3.8;
+      }
+      if (this.rimLight) {
+        this.rimLight.color.setHex(0x38bdf8);
+        this.rimLight.intensity = 1.5;
+      }
+      this.scene.background = new THREE.Color(0x080e18);
+      if (this.scene.fog instanceof THREE.Fog) {
+        this.scene.fog.color.setHex(0x091220);
+        this.scene.fog.near = 20;
+        this.scene.fog.far = 95;
+      }
       this.buildLevel3();
     }
+
+    this.smoothCamY = this.playerPos.y;
+    this.currentLookAt.set(this.playerPos.x, this.playerPos.y + 0.85, this.playerPos.z);
+    this.finishWarningTimer = 0;
 
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
   }
@@ -1227,13 +1315,13 @@ export class MaxFlizGameEngine {
     // Spray Graffiti & Crime Scene Chalk Outline Decals - PROMINENT FLOOR PLACEMENT
     // Arkadiusz - Clear floor placement in open aisle away from shelves
     const arkadiusz1 = createSprayGraffitiDecal();
-    arkadiusz1.position.set(-14, 0.05, -3.5);
+    arkadiusz1.position.set(-14, 0.035, -3.5);
     arkadiusz1.rotation.x = -Math.PI / 2;
     arkadiusz1.scale.set(1.4, 1.4, 1);
     this.levelRoot.add(arkadiusz1);
 
     const crime1 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime1.position.set(-26, 0.05, 8.5);
+    crime1.position.set(-26, 0.035, 8.5);
     crime1.rotation.y = Math.PI / 4;
     crime1.scale.setScalar(3.2); 
     this.levelRoot.add(crime1);
@@ -1267,13 +1355,13 @@ export class MaxFlizGameEngine {
   }
 
   private buildLevel2() {
-    // 1. Expanded Showroom Floor (80x28)
+    // 1. Radiant Luxury Italian Calacatta Gold Marble Floor (80x28)
     const floorGeo = new THREE.PlaneGeometry(80, 28);
     const floorMat = new THREE.MeshStandardMaterial({
-      map: getFloorTexture(),
-      roughness: 0.15,
-      metalness: 0.25,
-      color: 0x0f2b46,
+      map: getShowroomMarbleFloorTexture(),
+      roughness: 0.1,
+      metalness: 0.12,
+      color: 0xffffff,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -1281,9 +1369,14 @@ export class MaxFlizGameEngine {
     this.levelRoot.add(floor);
     this.platforms.push({ x: 0, y: 0, z: 0, width: 80, height: 0.2, depth: 28, type: 'floor' });
 
-    // Showroom Dark Luxury Wall
+    // Architectural Natural Oak Slat Showroom Wall with LED Cove Lighting
     const wallGeo = new THREE.BoxGeometry(80, 9.5, 0.4);
-    const wallMat = new THREE.MeshStandardMaterial({ map: getWallTexture(), roughness: 0.4, color: 0x1e3a5f });
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: getShowroomWallTexture(),
+      roughness: 0.35,
+      metalness: 0.1,
+      color: 0xffffff,
+    });
     const backWall = new THREE.Mesh(wallGeo, wallMat);
     backWall.position.set(0, 4.75, -14);
     this.levelRoot.add(backWall);
@@ -1293,10 +1386,35 @@ export class MaxFlizGameEngine {
     neonSign.position.set(0, 6.8, -13.75);
     this.levelRoot.add(neonSign);
 
+    // Ceiling Track Spotlights providing warm ambient downlight
+    [-24, -8, 8, 24].forEach((tx) => {
+      const track = createTrackSpotlights(8.0);
+      track.position.set(tx, 7.2, 0);
+      this.levelRoot.add(track);
+    });
+
+    // Architectural Glass Partitions dividing exhibition bays
+    [-23, -13, -3, 7, 17].forEach((px) => {
+      const glassNorth = createGlassPartition(2.8, 2.6);
+      glassNorth.position.set(px, 0, -5.5);
+      this.levelRoot.add(glassNorth);
+
+      const glassSouth = createGlassPartition(2.8, 2.6);
+      glassSouth.position.set(px, 0, 5.5);
+      this.levelRoot.add(glassSouth);
+    });
+
+    // Sculptural Ceramic Planters with Lush Greenery (Monsteras / Ficuses)
+    [-34, -26, -16, -6, 4, 14, 24, 32].forEach((px, idx) => {
+      const plant = createShowroomPlant();
+      plant.position.set(px, 0, idx % 2 === 0 ? -9.5 : 9.5);
+      this.levelRoot.add(plant);
+    });
+
     this.playerPos.set(-35, 0.5, 0);
     this.playerVel.set(0, 0, 0);
 
-    // Super Bouncy Bathtubs
+    // Super Bouncy Bathtubs placed on Luxury Marble Display Podiums with LED Cove Skirts
     const tubPositions = [
       { x: -28, z: -5 },
       { x: -18, z: 5 },
@@ -1306,20 +1424,25 @@ export class MaxFlizGameEngine {
       { x: 22, z: 5 },
     ];
     tubPositions.forEach((tp, idx) => {
+      // Luxury Display Podium
+      const podium = createDisplayPodium(3.2, 2.0, 0.22);
+      podium.position.set(tp.x, 0, tp.z);
+      this.levelRoot.add(podium);
+
       const tub = createBathtubModel();
-      tub.position.set(tp.x, 0, tp.z);
+      tub.position.set(tp.x, 0.22, tp.z);
       this.levelRoot.add(tub);
       this.platforms.push({
         x: tp.x,
-        y: 0.5,
+        y: 0.72,
         z: tp.z,
-        width: 2.2,
+        width: 2.4,
         height: 1.0,
-        depth: 1.2,
+        depth: 1.4,
         type: 'bathtub',
         bounce: 17.5,
       });
-      this.addGroutItem(`grout_l2_${idx}`, tp.x, 1.4, tp.z, 60);
+      this.addGroutItem(`grout_l2_${idx}`, tp.x, 1.6, tp.z, 60);
     });
 
     // Elevated Luxury Catwalks & Onyx Podiums
@@ -1356,18 +1479,20 @@ export class MaxFlizGameEngine {
     this.addGoldenCutterItem('cutter_l2_1', -18, 3.9, 5);
     this.addMagnetItem('mag_l2_1', 12, 3.9, -5);
 
-    // Easter Egg
+    // Easter Eggs
     this.addEasterEgg('egg_throne_1', 30, 0.05, -9, 'Złoty Tron Prezesa z 24k Złotem', 'throne', 600);
+    this.addEasterEgg('egg_l2_coffee', -32, 0.05, 8.5, 'Tajemna Kawiarka Ciśnieniowa z Mediolanu (Zapas Espresso)', 'coffee', 500);
+    this.addEasterEgg('egg_l2_wz', 6, 3.8, 5, 'Zagubiona Umowa z Włoską Fabryką Gresu na Wyłączność', 'folder', 550);
 
-    // Decals - LARGE & VISIBLE ON FLOOR
+    // Decals - LARGE & VISIBLE ON FLOOR (y = 0.035 prevents z-fighting)
     const spray2 = createSprayGraffitiDecal();
-    spray2.position.set(0, 0.05, -4.0);
+    spray2.position.set(0, 0.035, -4.0);
     spray2.rotation.x = -Math.PI / 2;
     spray2.scale.setScalar(2.5);
     this.levelRoot.add(spray2);
 
     const crime2 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime2.position.set(-28, 0.05, 9.0);
+    crime2.position.set(-28, 0.035, 9.0);
     crime2.scale.setScalar(3.0);
     this.levelRoot.add(crime2);
 
@@ -1393,13 +1518,13 @@ export class MaxFlizGameEngine {
     // Finish Loading Gate
     // Arkadiusz tu był
     const arkadiusz2 = createSprayGraffitiDecal();
-    arkadiusz2.position.set(12, 0.05, -7.0);
+    arkadiusz2.position.set(12, 0.035, -7.0);
     arkadiusz2.rotation.x = -Math.PI / 2;
     arkadiusz2.scale.set(3.2, 2.2, 1);
     this.levelRoot.add(arkadiusz2);
 
     const crime2_boss = createCrimeSceneBodyOutlineDecal('INSPEKTOR BHP');
-    crime2_boss.position.set(12, 0.05, -6);
+    crime2_boss.position.set(12, 0.035, -6);
     crime2_boss.scale.setScalar(3.5);
     this.levelRoot.add(crime2_boss);
 
@@ -1418,10 +1543,10 @@ export class MaxFlizGameEngine {
     // 1. Massive Final Arena: Baza Przeładunkowa & Starcie z Walczakiem i Królem-Leto (90x32)
     const floorGeo = new THREE.PlaneGeometry(90, 32);
     const floorMat = new THREE.MeshStandardMaterial({
-      map: getFloorTexture(),
-      roughness: 0.35,
-      metalness: 0.2,
-      color: 0x111827,
+      map: getTerminalGraniteFloorTexture(),
+      roughness: 0.28,
+      metalness: 0.18,
+      color: 0xffffff,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -1438,13 +1563,13 @@ export class MaxFlizGameEngine {
 
     // Decals Level 3 - ULTIMATE FLOOR VISIBILITY
     const spray3 = createSprayGraffitiDecal();
-    spray3.position.set(0, 0.05, -6.0);
+    spray3.position.set(0, 0.035, -6.0);
     spray3.rotation.x = -Math.PI / 2;
     spray3.scale.setScalar(2.8);
     this.levelRoot.add(spray3);
 
     const crime3 = createCrimeSceneBodyOutlineDecal('RUDY ŚMIERDZIUCH');
-    crime3.position.set(-32, 0.05, 11.0);
+    crime3.position.set(-32, 0.035, 11.0);
     crime3.scale.setScalar(3.5);
     this.levelRoot.add(crime3);
 
@@ -1501,6 +1626,11 @@ export class MaxFlizGameEngine {
     this.addGoldenCutterItem('cutter_l3_1', -18, 4.0, -10);
     this.addMagnetItem('mag_l3_1', 18, 4.0, -10);
 
+    // Easter Eggs in Level 3
+    this.addEasterEgg('egg_l3_bimber', -26, 0.05, -14.2, 'Tajemny Rezerwuar Bimbru 70% Piotra (Rocznik 2012)', 'coffee', 650);
+    this.addEasterEgg('egg_l3_level', 18, 3.8, -10.0, 'Złota Poziomica Majstra z Grawerem Max-Fliz 1992', 'folder', 750);
+    this.addEasterEgg('egg_l3_throne', 32, 0.05, 10.0, 'Tron Królewski Dyrekcji z Marmuru Carrara 24k', 'throne', 800);
+
     // Forklift Hazards Criss-Crossing the arena
     this.addForkliftHazard('fork_l3_1', -32, 28, -3, 5.2, 0xef4444);
     this.addForkliftHazard('fork_l3_2', 28, -32, 5, 5.6, 0x3b82f6);
@@ -1528,13 +1658,13 @@ export class MaxFlizGameEngine {
     // Final Victory Gate
     // Arkadiusz tu był
     const arkadiusz3 = createSprayGraffitiDecal();
-    arkadiusz3.position.set(-18, 0.05, -7.5);
+    arkadiusz3.position.set(-18, 0.035, -7.5);
     arkadiusz3.rotation.x = -Math.PI / 2;
     arkadiusz3.scale.set(3.5, 2.5, 1);
     this.levelRoot.add(arkadiusz3);
 
     const crime3_boss = createCrimeSceneBodyOutlineDecal('WALCZAK');
-    crime3_boss.position.set(20, 0.05, 5);
+    crime3_boss.position.set(20, 0.035, 5);
     crime3_boss.scale.setScalar(4.0);
     this.levelRoot.add(crime3_boss);
 
@@ -1560,6 +1690,7 @@ export class MaxFlizGameEngine {
       if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - dt);
       if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - dt);
       if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - dt);
+      if (this.finishWarningTimer > 0) this.finishWarningTimer = Math.max(0, this.finishWarningTimer - dt);
 
       if (this.speechBubbleTimer > 0) {
         this.speechBubbleTimer -= dt;
@@ -1739,9 +1870,15 @@ export class MaxFlizGameEngine {
       }
     }
 
-    const nextX = this.playerPos.x + this.playerVel.x * dt;
+    const currentBounds = this.currentLevelId === 1
+      ? { minX: -34.5, maxX: 33.5, minZ: -12.2, maxZ: 12.2 }
+      : this.currentLevelId === 2
+      ? { minX: -38.5, maxX: 37.5, minZ: -13.2, maxZ: 13.2 }
+      : { minX: -43.5, maxX: 43.5, minZ: -15.2, maxZ: 15.2 };
+
+    const nextX = THREE.MathUtils.clamp(this.playerPos.x + this.playerVel.x * dt, currentBounds.minX, currentBounds.maxX);
     const nextY = this.playerPos.y + this.playerVel.y * dt;
-    const nextZ = this.playerPos.z + this.playerVel.z * dt;
+    const nextZ = THREE.MathUtils.clamp(this.playerPos.z + this.playerVel.z * dt, currentBounds.minZ, currentBounds.maxZ);
 
     let landed = false;
     const pRadius = 0.28;
@@ -1786,6 +1923,12 @@ export class MaxFlizGameEngine {
       this.playerPos.y = nextY;
     }
     this.playerPos.z = nextZ;
+
+    // Proximity trigger for finish gate / delivery van
+    const finishTriggerX = this.currentLevelId === 1 ? 29.2 : this.currentLevelId === 2 ? 33.2 : 39.2;
+    if (this.playerPos.x >= finishTriggerX && Math.abs(this.playerPos.z) < 3.2 && this.playerPos.y >= 0) {
+      this.checkLevelFinish();
+    }
 
     if (!wasGrounded && landed && this.playerGroup) {
       this.playerGroup.scale.set(1.2, 0.82, 1.2);
@@ -2934,8 +3077,16 @@ export class MaxFlizGameEngine {
   }
 
   private checkLevelFinish() {
+    if (this.state !== 'playing') return;
+
     if (this.collectedVipCount < this.totalVipCount) {
-      this.sayQuote(`Potrzebujesz jeszcze ${this.totalVipCount - this.collectedVipCount} zamówień VIP!`);
+      if (this.finishWarningTimer <= 0) {
+        this.finishWarningTimer = 2.5;
+        const remaining = this.totalVipCount - this.collectedVipCount;
+        this.sayQuote(`BHP Magazynu: Zbierz jeszcze ${remaining} brakujących zamówień VIP przed odjazdem!`);
+        this.emitFloatingToast(`📦 BRAKUJE ${remaining} VIP!`, this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'vip');
+        sound.playHit();
+      }
       return;
     }
 
@@ -2994,10 +3145,6 @@ export class MaxFlizGameEngine {
   }
 
   private updateCamera(dt: number) {
-    let targetX = this.playerPos.x;
-    let targetY = this.playerPos.y;
-    let targetZ = this.playerPos.z;
-
     if (this.state === 'title') {
       const t = performance.now() * 0.0004;
       this.camera.position.x = Math.sin(t) * 16;
@@ -3007,16 +3154,45 @@ export class MaxFlizGameEngine {
       return;
     }
 
-    if (this.cameraMode === 'close') {
-      targetX += this.playerVel.x * 0.16;
-      targetZ += this.playerVel.z * 0.16;
+    // Determine target positions with smooth velocity look-ahead
+    const velLookAheadX = THREE.MathUtils.clamp(this.playerVel.x * 0.18, -2.5, 2.5);
+    const velLookAheadZ = THREE.MathUtils.clamp(this.playerVel.z * 0.18, -2.5, 2.5);
+    const targetX = this.playerPos.x + velLookAheadX;
+    const targetZ = this.playerPos.z + velLookAheadZ;
+
+    // Smooth vertical tracking: dampen camera Y so jumping doesn't violently bounce the screen
+    const targetGroundY = this.isGrounded ? this.playerPos.y : this.smoothCamY;
+    this.smoothCamY = THREE.MathUtils.damp(this.smoothCamY, targetGroundY, this.isGrounded ? 8.0 : 2.4, dt);
+    const targetY = this.smoothCamY;
+
+    // Check if an active boss is nearby to dynamically pull camera out slightly for tactical awareness
+    const activeBoss = this.enemies.find((e) => (e.type === 'walczak' || e.type === 'krol_leto') && e.state !== 'defeated');
+    let targetBossZoom = 1.0;
+    if (activeBoss) {
+      const bossDist = Math.hypot(activeBoss.x - this.playerPos.x, activeBoss.z - this.playerPos.z);
+      if (bossDist < 20) {
+        targetBossZoom = 1.18;
+      }
     }
+    this.bossCamZoom = THREE.MathUtils.damp(this.bossCamZoom, targetBossZoom, 2.5, dt);
 
-    const offsetX = this.cameraMode === 'iso' ? 9.5 : 3.8;
-    const offsetY = this.cameraMode === 'iso' ? 10.5 : 3.5;
-    const offsetZ = this.cameraMode === 'iso' ? 9.5 : 4.2;
+    // Target offsets for camera modes
+    // Close: immersive third-person isometric view, clear visibility of the corridor ahead (+X)
+    // Iso: wide-angle warehouse tactical overview
+    const targetOffsetX = (this.cameraMode === 'iso' ? 8.0 : 2.4) * this.bossCamZoom;
+    const targetOffsetY = (this.cameraMode === 'iso' ? 10.0 : 4.0) * this.bossCamZoom;
+    const targetOffsetZ = (this.cameraMode === 'iso' ? 8.5 : 5.0) * this.bossCamZoom;
 
-    const camTarget = new THREE.Vector3(targetX + offsetX, targetY + offsetY, targetZ + offsetZ);
+    // Smoothly interpolate camera offset between modes
+    this.currentCamOffset.x = THREE.MathUtils.damp(this.currentCamOffset.x, targetOffsetX, 4.5, dt);
+    this.currentCamOffset.y = THREE.MathUtils.damp(this.currentCamOffset.y, targetOffsetY, 4.5, dt);
+    this.currentCamOffset.z = THREE.MathUtils.damp(this.currentCamOffset.z, targetOffsetZ, 4.5, dt);
+
+    const camTarget = new THREE.Vector3(
+      targetX + this.currentCamOffset.x,
+      targetY + this.currentCamOffset.y,
+      targetZ + this.currentCamOffset.z
+    );
 
     let shakeX = 0;
     let shakeY = 0;
@@ -3063,8 +3239,17 @@ export class MaxFlizGameEngine {
     camTarget.y += shakeY;
     camTarget.z += shakeZ;
 
-    this.camera.position.lerp(camTarget, dt * 6.0);
-    this.camera.lookAt(targetX + shakeX * 0.3, targetY + 0.8 + shakeY * 0.3, targetZ + shakeZ * 0.3);
+    // Smooth camera position follow
+    this.camera.position.lerp(camTarget, dt * 6.5);
+
+    // Smooth lookAt target leading slightly in velocity direction
+    const desiredLookAt = new THREE.Vector3(
+      this.playerPos.x + velLookAheadX * 0.4 + shakeX * 0.3,
+      this.smoothCamY + 0.85 + shakeY * 0.3,
+      this.playerPos.z + velLookAheadZ * 0.4 + shakeZ * 0.3
+    );
+    this.currentLookAt.lerp(desiredLookAt, dt * 7.5);
+    this.camera.lookAt(this.currentLookAt);
 
     if (this.dirLight) {
       this.dirLight.position.set(this.playerPos.x + 14, 28, this.playerPos.z + 12);
