@@ -13,8 +13,9 @@
     <link rel="stylesheet" href="/src/theme-enhancements.css" />
   </head>
   <body>
-    <div id="game-shell">
+    <div id="game-canvas-container"></div>
 
+    <div id="game-shell">
       <div id="hud-top" class="hud-layer hidden">
         <div class="hud-cluster top-left">
           <div class="hero-badge">
@@ -50,26 +51,8 @@
             <div class="boss-hp-track">
               <div id="boss-hp-fill" class="boss-hp-fill" style="width: 100%;"></div>
             </div>
-            <div id="minimap-container" class="minimap-container">
-              <div class="minimap-header">
-                <span class="minimap-title">🗺️ RADAR MAG A1</span>
-                <div class="minimap-controls">
-                  <button id="btn-minimap-zoom-in" class="minimap-btn" title="Przybliż radar (+)">+</button>
-                  <button id="btn-minimap-zoom-out" class="minimap-btn" title="Oddal radar (-)">-</button>
-                  <button id="btn-minimap-toggle" class="minimap-btn" title="Ukryj / Pokaż radar">🗺️</button>
-                </div>
-              </div>
-              <div id="minimap-body" class="minimap-body">
-                <canvas id="minimap-canvas" width="200" height="150"></canvas>
-              </div>
-              <div class="minimap-legend">
-                <span class="legend-item"><span class="dot player"></span>Ty</span>
-                <span class="legend-item"><span class="dot enemy"></span>Wróg</span>
-                <span class="legend-item"><span class="dot vip"></span>VIP</span>
-                <span class="legend-item"><span class="dot exit"></span>Wyjście</span>
-              </div>
-            </div>
           </div>
+        </div>
 
         <div class="hud-cluster top-right">
           <div class="hud-top-stats-row">
@@ -89,12 +72,6 @@
             </div>
           </div>
           <div class="hud-top-quick-controls">
-            <button id="btn-top-zoom-in" class="top-icon-btn camera-top-btn" title="Przybliż kamerę (+ / Kółko)">
-              <span class="btn-ctrl-icon">🔍+</span>
-            </button>
-            <button id="btn-top-zoom-out" class="top-icon-btn camera-top-btn" title="Oddal kamerę (- / Kółko)">
-              <span class="btn-ctrl-icon">🔍-</span>
-            </button>
             <button id="btn-top-camera" class="top-icon-btn camera-top-btn" title="Zmień kąt widoku kamery (C)">
               <span class="btn-ctrl-icon">📐</span>
               <span class="btn-ctrl-label">
@@ -179,7 +156,6 @@
             <div class="brand-badge-pill">MAX - FLIZ</div>
             <h1 class="menu-game-title">MAGAZYN SHOWDOWN 3D</h1>
             <p class="menu-game-subtitle">Zwariowana platformówka na magazynie gresu i wyposażenia wnętrz</p>
-            <button id="btn-top-intro-3d" class="btn-top-intro-pill" title="Obejrzyj pełny kinowy film fabularny 3D">🎬 OGLĄDAJ FILM INTRO 3D</button>
           </div>
 
           <div class="menu-tabs-bar">
@@ -455,21 +431,15 @@
 
             <div id="tab-story" class="tab-panel">
               <div class="story-preview-card">
-                <div class="story-card-badge">🎬 FILM KINOWY 3D • AKCJA W CZASIE RZECZYWISTYM</div>
-                <div class="story-card-title">AFERA W MAX-FLIZ: BITWA O DOSTAWĘ GRESU</div>
+                <div class="story-card-badge">🍿 TRÓJWYMIAROWY FILM ANIMOWANY INTRO</div>
+                <div class="story-card-title">AFERA W MAX-FLIZ: SAKRAMENCKA DOSTAWA GRESU</div>
                 <p class="story-card-desc">
-                  Pełnometrażowy, humorystyczny film kinowy 3D! Zobacz, jak były kierownik Walczak próbuje zablokować aleje magazynu, a Marcin przybija potężną Pieczęć WZ, Grzesiek odpala Ścisk Zagłady, Dawid miota gresem Calacatta 120x280, Mateusz zawiesza drony atakiem BSOD, a Piotr podpala parkiet 70% bimbrem!
+                  Oglądaj pełnometrażowy, zabawny filmik 3D z udziałem Marcina, Grześka, Dawida, Mateusza, Piotra oraz złośliwego Byłego Kierownika Walczaka! Poznaj historię sabotażu i dołącz do ekipy.
                 </p>
-                <div class="story-btn-row">
-                  <button id="btn-open-3d-cutscene" class="btn-story-launch primary-3d-launch">
-                    <span class="launch-icon">🎬</span>
-                    <span>OGLĄDAJ FILM 3D (CINEMATIC 3D)</span>
-                  </button>
-                  <button id="btn-open-pixel-intro" class="btn-story-launch secondary-pixel-launch">
-                    <span class="launch-icon">👾</span>
-                    <span>RETRO ARCADE 2000s INTRO (VHS)</span>
-                  </button>
-                </div>
+                <button id="btn-open-story-modal" class="btn-story-launch">
+                  <span class="launch-icon">🎬</span>
+                  <span>OGLĄDAJ FILM INTRO 3D (CINEMATIC MOVIE)</span>
+                </button>
               </div>
             </div>
           </div>
@@ -607,9 +577,8 @@
         </div>
       </div>
     </div>
-    <div id="game-canvas-container"></div>
 
+    <script type="module" src="/src/visual-polish.js"></script>
     <script type="module" src="/src/index.ts"></script>
-
   </body>
 </html>

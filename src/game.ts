@@ -85,7 +85,6 @@ export class MaxFlizGameEngine {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public container: HTMLElement;
-  public threeRenderer: THREE.WebGLRenderer | null = null;
 
 
   private state: GameState = 'title';
@@ -118,56 +117,15 @@ export class MaxFlizGameEngine {
   private screenShakeDuration = 0;
   private screenShakeIntensity = 0;
   private screenShakeTimer = 0;
-  private cameraMode: 'iso' | 'close' = 'iso';
-  private camZoomFactor = 1.0;
-  private minimapZoomScale = 3.5;
-  private minimapVisible = true;
-  private minimapFrameCounter = 0;
-  private finishGatePos = new THREE.Vector3(30, 0, 0);
+  private cameraMode: 'iso' | 'close' = 'close';
   private smoothCamY = 0.5;
-  private currentCamOffset = new THREE.Vector3(9.0, 16.0, 15.0);
+  private currentCamOffset = new THREE.Vector3(2.4, 4.0, 5.0);
   private currentLookAt = new THREE.Vector3(0, 1.2, 0);
   private bossCamZoom = 1.0;
   private finishWarningTimer = 0;
   private dodgeCooldownTimer = 0;
   private hitStopTimer = 0;
   private targetRing!: THREE.Mesh;
-  private bloomPulseTimer = 0;
-  private levelBounds = { minX: -35, maxX: 35, minZ: -15, maxZ: 15 };
-
-  public triggerBloomPulse(durationSec = 0.3) {
-    this.bloomPulseTimer = durationSec;
-  }
-
-  public zoomInCamera() {
-    this.camZoomFactor = Math.max(0.4, this.camZoomFactor - 0.15);
-  }
-
-  public zoomOutCamera() {
-    this.camZoomFactor = Math.min(2.8, this.camZoomFactor + 0.15);
-  }
-
-  public toggleCameraMode(): 'iso' | 'close' {
-    this.cameraMode = this.cameraMode === 'iso' ? 'close' : 'iso';
-    return this.cameraMode;
-  }
-
-  public zoomInMinimap() {
-    this.minimapZoomScale = Math.min(7.5, this.minimapZoomScale + 0.8);
-  }
-
-  public zoomOutMinimap() {
-    this.minimapZoomScale = Math.max(1.8, this.minimapZoomScale - 0.8);
-  }
-
-  public toggleMinimap() {
-    this.minimapVisible = !this.minimapVisible;
-    const elem = document.getElementById('minimap-container');
-    if (elem) {
-      if (this.minimapVisible) elem.classList.remove('collapsed');
-      else elem.classList.add('collapsed');
-    }
-  }
 
   public triggerScreenShake(intensity: number, durationSec: number = 0.5) {
     this.screenShakeIntensity = Math.max(this.screenShakeIntensity, intensity);
@@ -274,17 +232,9 @@ export class MaxFlizGameEngine {
     this.camera.far = 160;
     this.scene.background = new THREE.Color(0x07131d);
     this.scene.add(this.levelRoot);
-
-    this.targetRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.65, 0.75, 32),
-      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
-    );
-    this.targetRing.rotation.x = -Math.PI / 2;
-    this.scene.add(this.targetRing);
-
     this.setupLighting();
     this.setupInput();
-    // loadLevel(1) removed from constructor to prevent blocking main thread on boot
+    this.loadLevel(1);
   }
 
   private setupLighting() {
@@ -332,30 +282,13 @@ export class MaxFlizGameEngine {
       if (e.code === 'Escape' || e.code === 'KeyP') {
         this.togglePause();
       }
-      if (e.code === 'KeyC' || e.code === 'KeyV') {
+      if (e.code === 'KeyC') {
         this.toggleCameraMode();
       }
-      if (e.code === 'Equal' || e.code === 'NumpadAdd') {
-        this.zoomInCamera();
-      }
-      if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-        this.zoomOutCamera();
-      }
-      if (e.code === 'KeyN') {
-        this.toggleMinimap();
+      if (e.code === 'KeyM') {
+        sound.toggleMute();
       }
     });
-
-    this.container?.addEventListener('wheel', (e: WheelEvent) => {
-      if (this.state === 'playing') {
-        e.preventDefault();
-        if (e.deltaY > 0) {
-          this.zoomOutCamera();
-        } else {
-          this.zoomInCamera();
-        }
-      }
-    }, { passive: false });
 
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
@@ -399,23 +332,17 @@ export class MaxFlizGameEngine {
     return this.charDef;
   }
 
+  public toggleCameraMode(): 'iso' | 'close' {
+    this.cameraMode = this.cameraMode === 'iso' ? 'close' : 'iso';
+    return this.cameraMode;
+  }
+
   public getCameraMode(): 'iso' | 'close' {
     return this.cameraMode;
   }
 
   public isPaused(): boolean {
     return this.state === 'paused';
-  }
-
-  public setCamera(camera: THREE.PerspectiveCamera) {
-    this.camera = camera;
-  }
-
-  public setScene(scene: THREE.Scene) {
-    this.scene = scene;
-    if (!this.scene.children.includes(this.levelRoot)) {
-      this.scene.add(this.levelRoot);
-    }
   }
 
   private rebuildPlayerMesh() {
@@ -454,11 +381,6 @@ export class MaxFlizGameEngine {
     this.rebuildPlayerMesh();
     this.playerPos.set(0, 0.5, 0);
     this.callbacks.onBossUpdate?.('', 0, 0, false);
-    
-    // Build initial level for title visual if not already built
-    if (this.levelRoot.children.length === 0) {
-      this.loadLevel(1);
-    }
   }
 
   public startGame(levelId = 1) {
@@ -484,6 +406,7 @@ export class MaxFlizGameEngine {
     this.loadLevel(levelId);
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
+    sound.startMusic();
     this.sayRandomVoiceLine();
   }
 
@@ -542,7 +465,6 @@ export class MaxFlizGameEngine {
         this.rimLight.intensity = 1.2;
       }
       this.scene.background = new THREE.Color(0x07131d);
-      this.levelBounds = { minX: -36, maxX: 36, minZ: -14, maxZ: 14 };
       if (this.scene.fog instanceof THREE.Fog) {
         this.scene.fog.color.setHex(0x091827);
         this.scene.fog.near = 18;
@@ -569,7 +491,6 @@ export class MaxFlizGameEngine {
         this.rimLight.intensity = 1.4;
       }
       this.scene.background = new THREE.Color(0x1b1928);
-      this.levelBounds = { minX: -42, maxX: 42, minZ: -15, maxZ: 15 };
       if (this.scene.fog instanceof THREE.Fog) {
         this.scene.fog.color.setHex(0x221e30);
         this.scene.fog.near = 28;
@@ -596,7 +517,6 @@ export class MaxFlizGameEngine {
         this.rimLight.intensity = 1.5;
       }
       this.scene.background = new THREE.Color(0x080e18);
-      this.levelBounds = { minX: -50, maxX: 50, minZ: -18, maxZ: 18 };
       if (this.scene.fog instanceof THREE.Fog) {
         this.scene.fog.color.setHex(0x091220);
         this.scene.fog.near = 20;
@@ -1425,20 +1345,11 @@ export class MaxFlizGameEngine {
     this.addMonterEnemy('monter_1', 10, -6, 6, 'Monter z Młotkiem Gumowym');
     this.addInspectorEnemy('insp_1', -2, -5, 5, 'Inspektor BHP z Listą Zastrzeżeń');
     this.addPiorunDronEnemy('dron_1', -18, 16, 0, 2.2, 'Piorun Dron Skaner Kodów B4');
-
-    // DYNAMIC ACCENT LIGHTING
-    const l1 = new THREE.PointLight(0x38bdf8, 18, 25);
-    l1.position.set(-18, 5, 8);
-    this.levelRoot.add(l1);
-    const l2 = new THREE.PointLight(0xf59e0b, 15, 22);
-    l2.position.set(12, 4, -8);
-    this.levelRoot.add(l2);
     this.addPiorunDronEnemy('dron_2', -10, 22, -4, 2.4, 'Dron Inspekcyjny Sektora B');
 
     // Finish Loading Gate & Delivery Van
     const finishGate = createFinishGate();
     finishGate.position.set(30, 0, 0);
-    this.finishGatePos.set(30, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
@@ -1606,14 +1517,6 @@ export class MaxFlizGameEngine {
     this.addPiorunDronEnemy('dron_l2_1', -20, 20, 0, 2.4, 'Dron Multimedialny Showroomu');
     this.addPiorunDronEnemy('dron_l2_2', -15, 25, 4, 2.5, 'Skrzydlaty Skaner Ekspozycji');
 
-    // LUXURY ACCENT LIGHTS
-    const sl1 = new THREE.PointLight(0xec4899, 20, 30);
-    sl1.position.set(-25, 5, 5);
-    this.levelRoot.add(sl1);
-    const sl2 = new THREE.PointLight(0xfbbf24, 16, 25);
-    sl2.position.set(20, 4, -5);
-    this.levelRoot.add(sl2);
-
     // BOSS LEVEL 2: Król-Leto
     this.addKrolLetoBossEnemy('boss_krol_leto_l2', 24, 0);
 
@@ -1632,7 +1535,6 @@ export class MaxFlizGameEngine {
 
     const finishGate = createFinishGate();
     finishGate.position.set(34, 0, 0);
-    this.finishGatePos.set(34, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
@@ -1773,7 +1675,6 @@ export class MaxFlizGameEngine {
 
     const finishGate = createFinishGate();
     finishGate.position.set(40, 0, 0);
-    this.finishGatePos.set(40, 0, 0);
     this.levelRoot.add(finishGate);
 
     const van = createDeliveryVan();
@@ -1781,70 +1682,50 @@ export class MaxFlizGameEngine {
     van.rotation.y = -Math.PI / 2;
     this.levelRoot.add(van);
     this.platforms.push({ x: 41.8, y: 0.8, z: 0, width: 3.5, height: 1.6, depth: 2.6, type: 'finish_truck' });
-
-    // OMINOUS FINAL LIGHTING
-    const fl1 = new THREE.PointLight(0xef4444, 25, 35);
-    fl1.position.set(25, 6, 0);
-    this.levelRoot.add(fl1);
-    const fl2 = new THREE.PointLight(0x3b82f6, 18, 28);
-    fl2.position.set(-30, 4, 0);
-    this.levelRoot.add(fl2);
   }
 
   public update(dt: number) {
     if (this.state !== 'playing' && this.state !== 'title') return;
 
-    let effectiveDt = dt;
     if (this.hitStopTimer > 0) {
-      this.hitStopTimer = Math.max(0, this.hitStopTimer - dt);
-      effectiveDt = dt * 0.2; // Dramatic slow-mo impact instead of a full freeze
+      this.hitStopTimer -= dt;
+      return;
     }
-    const simDt = effectiveDt;
 
-    this.updatePerkTimers(simDt);
+    this.updatePerkTimers(dt);
 
     if (this.state === 'playing') {
-      if (this.invulnerableTimer > 0) this.invulnerableTimer -= simDt;
-      if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - simDt);
-      if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - simDt);
-      if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - simDt);
-      if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - simDt);
-      if (this.finishWarningTimer > 0) this.finishWarningTimer = Math.max(0, this.finishWarningTimer - simDt);
+      if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+      if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - dt);
+      if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - dt);
+      if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - dt);
+      if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - dt);
+      if (this.finishWarningTimer > 0) this.finishWarningTimer = Math.max(0, this.finishWarningTimer - dt);
 
       if (this.speechBubbleTimer > 0) {
-        this.speechBubbleTimer -= simDt;
+        this.speechBubbleTimer -= dt;
         if (this.speechBubbleTimer <= 0) {
           this.callbacks.onSpeechBubble('');
         }
       }
 
       if (this.comboTimer > 0) {
-        this.comboTimer -= simDt;
+        this.comboTimer -= dt;
         if (this.comboTimer <= 0) {
           this.comboStreak = 0;
         }
       }
 
-      this.updatePlayerMovement(simDt);
-      this.updateCollectibles(simDt);
-      this.updateDroppedPerks(simDt);
-      this.updateHazards(simDt);
-      this.updateEnemies(simDt);
-      this.updateProjectiles(simDt);
-      this.updateBimberMolotovs(simDt);
-      this.updateBimberFirePuddles(simDt);
-      this.updateSpecialEffects(simDt);
-      this.updateParticles(simDt);
-    }
-
-    if (this.bloomPulseTimer > 0) {
-      this.bloomPulseTimer -= dt;
-      if (this.threeRenderer) {
-        const exposure = 1.12 + Math.max(0, Math.sin(this.bloomPulseTimer * 10) * 0.5);
-        this.threeRenderer.toneMappingExposure = exposure;
-      }
-    } else {
-      if (this.threeRenderer) this.threeRenderer.toneMappingExposure = 1.12;
+      this.updatePlayerMovement(dt);
+      this.updateCollectibles(dt);
+      this.updateDroppedPerks(dt);
+      this.updateHazards(dt);
+      this.updateEnemies(dt);
+      this.updateProjectiles(dt);
+      this.updateBimberMolotovs(dt);
+      this.updateBimberFirePuddles(dt);
+      this.updateSpecialEffects(dt);
+      this.updateParticles(dt);
     }
 
     this.updateCamera(dt);
@@ -1870,31 +1751,32 @@ export class MaxFlizGameEngine {
   }
 
   private updatePlayerMovement(dt: number) {
-    let screenX = 0;
-    let screenY = 0;
+    let inputX = 0;
+    let inputZ = 0;
 
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) screenX += 1;
-    if (this.keys['KeyA'] || this.keys['ArrowLeft']) screenX -= 1;
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) screenY += 1;
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) screenY -= 1;
-
-    if (Math.abs(this.virtualJoystick.x) > 0.08 || Math.abs(this.virtualJoystick.y) > 0.08) {
-      screenX = this.virtualJoystick.x;
-      screenY = -this.virtualJoystick.y; // dragging up moves forward
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) {
+      inputX += 0.707;
+      inputZ -= 0.707;
+    }
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) {
+      inputX -= 0.707;
+      inputZ += 0.707;
+    }
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
+      inputX -= 0.707;
+      inputZ -= 0.707;
+    }
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+      inputX += 0.707;
+      inputZ += 0.707;
     }
 
-    // Dynamic camera-aligned projection on the horizontal floor:
-    // Screen UP moves along camera forward projection; Screen RIGHT moves along camera right projection.
-    const camToPlayerX = this.playerPos.x - this.camera.position.x;
-    const camToPlayerZ = this.playerPos.z - this.camera.position.z;
-    const camFwdLen = Math.hypot(camToPlayerX, camToPlayerZ);
-    const fwdX = camFwdLen > 0.001 ? camToPlayerX / camFwdLen : 0;
-    const fwdZ = camFwdLen > 0.001 ? camToPlayerZ / camFwdLen : -1;
-    const rightX = -fwdZ;
-    const rightZ = fwdX;
-
-    let inputX = rightX * screenX + fwdX * screenY;
-    let inputZ = rightZ * screenX + fwdZ * screenY;
+    if (Math.abs(this.virtualJoystick.x) > 0.08 || Math.abs(this.virtualJoystick.y) > 0.08) {
+      const jx = this.virtualJoystick.x;
+      const jy = this.virtualJoystick.y;
+      inputX = jx * 0.707 + jy * 0.707;
+      inputZ = -jx * 0.707 + jy * 0.707;
+    }
 
     const inputLen = Math.hypot(inputX, inputZ);
     if (inputLen > 1) {
@@ -1913,16 +1795,16 @@ export class MaxFlizGameEngine {
       }
     }
 
-    if (inputLen > 0.08) {
+    if (inputLen > 0.1) {
       const targetX = inputX * speed;
       const targetZ = inputZ * speed;
-      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, targetX, 22, dt);
-      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, targetZ, 22, dt);
+      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, targetX, 12, dt);
+      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, targetZ, 12, dt);
       this.playerVel.x = THREE.MathUtils.clamp(this.playerVel.x, -speed * 1.35, speed * 1.35);
       this.playerVel.z = THREE.MathUtils.clamp(this.playerVel.z, -speed * 1.35, speed * 1.35);
-      this.playerRot = Math.atan2(inputX, inputZ);
+      this.playerRot = Math.atan2(this.playerVel.x, this.playerVel.z);
 
-      this.walkCycle += dt * 15;
+      this.walkCycle += dt * 14;
       if (this.leftLeg && this.rightLeg && this.leftArm && this.rightArm) {
         this.leftLeg.rotation.x = Math.sin(this.walkCycle) * 0.6;
         this.rightLeg.rotation.x = -Math.sin(this.walkCycle) * 0.6;
@@ -1930,8 +1812,8 @@ export class MaxFlizGameEngine {
         this.rightArm.rotation.x = Math.sin(this.walkCycle) * 0.6;
       }
     } else {
-      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, 0, 24, dt);
-      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, 0, 24, dt);
+      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, 0, 16, dt);
+      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, 0, 16, dt);
       if (this.leftLeg && this.rightLeg && this.leftArm && this.rightArm) {
         this.leftLeg.rotation.x = 0;
         this.rightLeg.rotation.x = 0;
@@ -2066,25 +1948,16 @@ export class MaxFlizGameEngine {
       this.playerGroup.scale.set(1.2, 0.82, 1.2);
     }
 
-    if (this.playerPos.y < -4.5) {
+    if (this.playerPos.y < -3.5) {
       this.takeDamage('Wypadłeś z rampy załadunkowej!');
-      this.playerPos.set(this.currentLevelId === 3 ? -40 : -32, 2, 0);
+      this.playerPos.set(0, 2, 0);
       this.playerVel.set(0, 0, 0);
     }
-    // SOLID BOUNDARY CLAMPING
-    this.playerPos.x = THREE.MathUtils.clamp(this.playerPos.x, this.levelBounds.minX, this.levelBounds.maxX);
-    this.playerPos.z = THREE.MathUtils.clamp(this.playerPos.z, this.levelBounds.minZ, this.levelBounds.maxZ);
 
     if (this.playerGroup) {
       this.playerGroup.position.copy(this.playerPos);
       this.playerGroup.rotation.y = this.playerRot;
       this.playerGroup.scale.lerp(new THREE.Vector3(1, 1, 1), dt * 8);
-    }
-
-    if (this.targetRing) {
-      this.targetRing.position.set(this.playerPos.x, 0.05, this.playerPos.z);
-      this.targetRing.rotation.z += dt * 2;
-      (this.targetRing.material as THREE.MeshBasicMaterial).opacity = 0.3 + Math.sin(performance.now() * 0.005) * 0.15;
     }
   }
 
@@ -2170,98 +2043,91 @@ export class MaxFlizGameEngine {
     });
   }
 
-  private static readonly ENEMY_QUOTES: Record<string, string[]> = {
-    customer: [
-      "Gdzie moje kafelki?!",
-      "Awantura o rabat 10%!",
-      "Chcę widzieć kierownika!",
-      "Płytki miały być gładkie!"
-    ],
-    architect: [
-      "To ma być ecru czy beż?!",
-      "Brak dylatacji na podłodze!",
-      "Gres niezgodny z projektem!",
-      "Wizualizacja mówiła inaczej!"
-    ],
-    agv_robot: [
-      "BEEP BOOP ZLEW B4!",
-      "Uwaga! Transport palety!",
-      "Błąd czujnika przeszkód!",
-      "Sztaplowanie w toku!"
-    ],
-    inspector: [
-      "Gdzie kask BHP?!",
-      "Brak protokołu odbioru!",
-      "Mandat 500 PLN za bałagan!",
-      "Przekroczenie normy hałasu!"
-    ],
-    handlowiec: [
-      "Mam super ofertę na zlew!",
-      "Rabat 3% tylko dzisiaj!",
-      "A może zestaw baterii?!",
-      "Darmowa dostawa do hotelu!"
-    ],
-    monter: [
-      "Dobiję to gumowym młotkiem!",
-      "Brak poziomu w alei!",
-      "Cięcie po skosie 45°!",
-      "Mieszam klej wysokie wiązanie!"
-    ],
-    piorun_dron: [
-      "BZZZT SKAN KODU B4!",
-      "Niezgodność numeru WZ!",
-      "Skanowanie palety A1!",
-      "Detekcja ruchu w alei!"
-    ],
-    elite_walczak_guard: [
-      "Strefa Walczaka zamknięta!",
-      "Brak przepustki B4!",
-      "Odwrót z magazynu!",
-      "Tarcza BHP w gotowości!"
-    ],
-    kurier: [
-      "Dostawa DPD od Rudego z DPD! Załatwię Johnny Walkera tanio",
-      "Paczka ekspresowa DPD dla VIP! Załatwię Johnny Walkera tanio",
-      "Paczka od Rudego! Załatwię Johnny Walkera tanio",
-      "Johnny Walker Express u drzwi! Załatwię Johnny Walkera tanio"
-    ],
-    przedstawiciel_włoski: [
-      "Mamma mia, armatura de lux!",
-      "Zlatane baterie z Mediolanu!",
-      "Prego, uwaga na marmur!",
-      "Amore, to jest prawdziwy styl!"
-    ],
-    sztaplar_szalony: [
-      "Z drogi, 3 tony ładunku!",
-      "Paleciak bez hamulców!",
-      "Uwaga wyjazd z alei C!",
-      "Czysta moc 300 Nm!"
-    ],
-    walczak: [
-      "Ten magazyn jest MÓJ!",
-      "Anuluję wszystkie faktury!",
-      "Zawiadamiam Centralę!",
-      "Nikt tu nie wygra ze mną!"
-    ],
-    krol_leto: [
-      "ZWALNIAM CIĘ DYSCYPLINARNIE!",
-      "Dyscyplinarka w trybie natychmiastowym!",
-      "Oddawaj kask BHP i przepustkę!",
-      "Moja decyzja o zwolnieniu jest OSTATECZNA!",
-      "Błąd w WZ-tce? To koniec Twojej kariery!"
-    ]
-  };
-
   private updateEnemies(dt: number) {
+    const ENEMY_QUOTES: Record<string, string[]> = {
+      customer: [
+        "Gdzie moje kafelki?!",
+        "Awantura o rabat 10%!",
+        "Chcę widzieć kierownika!",
+        "Płytki miały być gładkie!"
+      ],
+      architect: [
+        "To ma być ecru czy beż?!",
+        "Brak dylatacji na podłodze!",
+        "Gres niezgodny z projektem!",
+        "Wizualizacja mówiła inaczej!"
+      ],
+      agv_robot: [
+        "BEEP BOOP ZLEW B4!",
+        "Uwaga! Transport palety!",
+        "Błąd czujnika przeszkód!",
+        "Sztaplowanie w toku!"
+      ],
+      inspector: [
+        "Gdzie kask BHP?!",
+        "Brak protokołu odbioru!",
+        "Mandat 500 PLN za bałagan!",
+        "Przekroczenie normy hałasu!"
+      ],
+      handlowiec: [
+        "Mam super ofertę na zlew!",
+        "Rabat 3% tylko dzisiaj!",
+        "A może zestaw baterii?!",
+        "Darmowa dostawa do hotelu!"
+      ],
+      monter: [
+        "Dobiję to gumowym młotkiem!",
+        "Brak poziomu w alei!",
+        "Cięcie po skosie 45°!",
+        "Mieszam klej wysokie wiązanie!"
+      ],
+      piorun_dron: [
+        "BZZZT SKAN KODU B4!",
+        "Niezgodność numeru WZ!",
+        "Skanowanie palety A1!",
+        "Detekcja ruchu w alei!"
+      ],
+      elite_walczak_guard: [
+        "Strefa Walczaka zamknięta!",
+        "Brak przepustki B4!",
+        "Odwrót z magazynu!",
+        "Tarcza BHP w gotowości!"
+      ],
+      kurier: [
+        "Dostawa DPD od Rudego z DPD! Załatwię Johnny Walkera tanio",
+        "Paczka ekspresowa DPD dla VIP! Załatwię Johnny Walkera tanio",
+        "Paczka od Rudego! Załatwię Johnny Walkera tanio",
+        "Johnny Walker Express u drzwi! Załatwię Johnny Walkera tanio"
+      ],
+      przedstawiciel_włoski: [
+        "Mamma mia, armatura de lux!",
+        "Złote baterie z Mediolanu!",
+        "Prego, uwaga na marmur!",
+        "Amore, to jest prawdziwy styl!"
+      ],
+      sztaplar_szalony: [
+        "Z drogi, 3 tony ładunku!",
+        "Paleciak bez hamulców!",
+        "Uwaga wyjazd z alei C!",
+        "Czysta moc 300 Nm!"
+      ],
+      walczak: [
+        "Ten magazyn jest MÓJ!",
+        "Anuluję wszystkie faktury!",
+        "Zawiadamiam Centralę!",
+        "Nikt tu nie wygra ze mną!"
+      ],
+      krol_leto: [
+        "ZWALNIAM CIĘ DYSCYPLINARNIE!",
+        "Dyscyplinarka w trybie natychmiastowym!",
+        "Oddawaj kask BHP i przepustkę!",
+        "Moja decyzja o zwolnieniu jest OSTATECZNA!",
+        "Błąd w WZ-tce? To koniec Twojej kariery!"
+      ]
+    };
+
     this.enemies.forEach((e) => {
       if (e.state === 'defeated' || !e.mesh) return;
-
-      const dx = this.playerPos.x - e.x;
-      const dz = this.playerPos.z - e.z;
-      const distToPlayer = Math.hypot(dx, dz);
-
-      // Distance culling: skip heavy updates for distant non-boss enemies
-      if (distToPlayer > 42 && e.type !== 'walczak' && e.type !== 'krol_leto') return;
 
       if (!e.hpBar) {
         e.hpBar = new THREE.Group();
@@ -2272,16 +2138,12 @@ export class MaxFlizGameEngine {
         e.hpBar.position.y = e.type === 'walczak' || e.type === 'krol_leto' ? 2.4 : 1.65;
         e.mesh.add(e.hpBar);
         e.hpFill = fill;
-        e.hpBar.visible = false;
       }
       if (e.hpBar) {
-        const isDamaged = e.hp < e.maxHp;
-        e.hpBar.visible = isDamaged;
-        if (isDamaged) {
-          e.hpBar.lookAt(this.camera.position);
-          e.hpFill.scale.x = Math.max(0, e.hp / e.maxHp);
-          e.hpFill.position.x = (e.hpFill.scale.x - 1) * 0.4;
-        }
+        e.hpBar.lookAt(this.camera.position);
+        e.hpFill.scale.x = Math.max(0, e.hp / e.maxHp);
+        e.hpFill.position.x = (e.hpFill.scale.x - 1) * 0.4;
+        e.hpBar.visible = e.hp < e.maxHp; // Only show if damaged
       }
 
       e.walkCycle += dt * 8;
@@ -2290,57 +2152,22 @@ export class MaxFlizGameEngine {
         e.legR.rotation.x = -Math.sin(e.walkCycle) * 0.5;
       }
 
-      // TACTICAL INDICATOR
-      if (e.state === 'chase' || e.state === 'searching') {
-        const pulse = 1.0 + Math.sin(performance.now() * 0.01) * 0.15;
-        e.mesh.scale.set(pulse, pulse, pulse);
-      } else {
-        e.mesh.scale.set(1, 1, 1);
-      }
-
       if (e.stunTimer > 0) {
         e.stunTimer -= dt;
-        if (e.stunTimer <= 0) {
-          e.state = 'searching';
-          e.searchTimer = 2.5;
-        }
+        if (e.stunTimer <= 0) e.state = 'patrol';
         return;
       }
 
-      // SIGHT & DETECTION LOGIC
-      const detectionRange = (e.type === 'walczak' || e.type === 'krol_leto') ? 16.0 : (e.state === 'chase' ? 12.0 : 8.5);
-      const canSeePlayer = distToPlayer < detectionRange;
-
-      if (canSeePlayer) {
-        e.state = 'chase';
-        e.lastKnownPlayerPos = { x: this.playerPos.x, z: this.playerPos.z };
-        e.searchTimer = 0;
-      } else if (e.state === 'chase') {
-        e.state = 'searching';
-        e.searchTimer = 3.5;
-      }
-
-      if (e.state === 'searching' && e.searchTimer !== undefined) {
-        e.searchTimer -= dt;
-        if (e.searchTimer <= 0) {
-          e.state = 'patrol';
-          e.lastKnownPlayerPos = null;
-        } else if (e.lastKnownPlayerPos) {
-          const sdx = e.lastKnownPlayerPos.x - e.x;
-          const sdz = e.lastKnownPlayerPos.z - e.z;
-          const sdist = Math.hypot(sdx, sdz);
-          if (sdist > 0.5) {
-            e.x += (sdx / sdist) * e.speed * 0.7 * dt;
-            e.z += (sdz / sdist) * e.speed * 0.7 * dt;
-          }
-        }
-      }
+      // Dynamic AI Distance to Player
+      const dx = this.playerPos.x - e.x;
+      const dz = this.playerPos.z - e.z;
+      const distToPlayer = Math.hypot(dx, dz);
 
       // Random Shout Quotes floating above head without frame
       e.shoutTimer = (e.shoutTimer || 0) - dt;
       if (e.shoutTimer <= 0 && distToPlayer < 12.0) {
         e.shoutTimer = 3.2 + Math.random() * 2.8;
-        const quotes = MaxFlizGameEngine.ENEMY_QUOTES[e.type] || ["Z drogi!"];
+        const quotes = ENEMY_QUOTES[e.type] || ["Z drogi!"];
         const quote = quotes[Math.floor(Math.random() * quotes.length)];
         e.shoutText = quote;
         this.emitFloatingToast(quote, e.x, e.y + 1.25, e.z, 'enemy_shout', { enemyType: e.type });
@@ -2414,9 +2241,6 @@ export class MaxFlizGameEngine {
           e.x += (dx / Math.max(0.1, distToPlayer)) * e.speed * 1.05 * dt;
           e.z += (dz / Math.max(0.1, distToPlayer)) * e.speed * 1.05 * dt;
           if (isPhase2 && Math.random() < 0.05) this.triggerScreenShake(0.1, 0.2);
-        } else if (e.state === 'searching' && e.lastKnownPlayerPos) {
-          const angle = Math.atan2(e.lastKnownPlayerPos.x - e.x, e.lastKnownPlayerPos.z - e.z);
-          e.mesh.rotation.y = angle;
         } else {
           e.x += e.speed * e.dir * dt;
           if (e.dir > 0 && e.x >= e.endX) {
@@ -2575,14 +2399,12 @@ export class MaxFlizGameEngine {
           // Check if guard has active shield
           if (e.shieldActive && this.charDef.id !== 'grzesiek') {
             sound.playShieldBreak();
-            this.triggerBloomPulse(0.08);
             this.emitFloatingToast('🛡️ BLOK TARCZY!', e.x, e.y + 1, e.z, 'damage');
             e.shieldActive = false; // Shield breaks after 1 hit!
           } else {
             const dmg = this.charDef.id === 'dawid' ? 2 : 1;
             e.hp -= dmg;
             sound.playSmack();
-            this.triggerBloomPulse(0.1);
             this.cameraShake = 0.25;
             this.spawnParticleRing(e.x, e.y + 0.8, e.z, 0xf59e0b);
             this.emitFloatingToast(`-${dmg} HP`, e.x, e.y + 0.8, e.z, 'damage');
@@ -2807,15 +2629,11 @@ export class MaxFlizGameEngine {
   }
 
   private updateParticles(dt: number) {
-    if (this.particles.length > 80) {
-      const excess = this.particles.splice(0, this.particles.length - 80);
-      excess.forEach((p) => this.levelRoot.remove(p.mesh));
-    }
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
       pt.life -= dt;
       pt.mesh.position.addScaledVector(pt.vel, dt);
-      const scale = Math.max(0.001, pt.life / pt.maxLife);
+      const scale = (pt.life / pt.maxLife);
       pt.mesh.scale.setScalar(scale);
 
       if (pt.life <= 0) {
@@ -2823,11 +2641,6 @@ export class MaxFlizGameEngine {
         this.particles.splice(i, 1);
       }
     }
-  }
-
-  public triggerJump() {
-    if (this.state !== 'playing') return;
-    this.jumpBufferTimer = 0.22;
   }
 
   public triggerAttack() {
@@ -3323,7 +3136,6 @@ export class MaxFlizGameEngine {
     this.hp = Math.max(0, this.hp - amount);
     this.invulnerableTimer = 1.8;
     sound.playHit();
-    this.triggerBloomPulse(0.45);
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
 
     // Screen Shake on damage received by player!
@@ -3437,13 +3249,12 @@ export class MaxFlizGameEngine {
     }
     this.bossCamZoom = THREE.MathUtils.damp(this.bossCamZoom, targetBossZoom, 2.5, dt);
 
-    // Target offsets for camera modes:
-    // Close: immersive wide action view (X=4.5, Y=8.0, Z=8.5)
-    // Iso: wide-angle warehouse tactical overview (X=9.0, Y=16.0, Z=15.0)
-    const zoomMultiplier = this.bossCamZoom * this.camZoomFactor;
-    const targetOffsetX = (this.cameraMode === 'iso' ? 9.0 : 4.5) * zoomMultiplier;
-    const targetOffsetY = (this.cameraMode === 'iso' ? 16.0 : 8.0) * zoomMultiplier;
-    const targetOffsetZ = (this.cameraMode === 'iso' ? 15.0 : 8.5) * zoomMultiplier;
+    // Target offsets for camera modes
+    // Close: immersive third-person isometric view, clear visibility of the corridor ahead (+X)
+    // Iso: wide-angle warehouse tactical overview
+    const targetOffsetX = (this.cameraMode === 'iso' ? 8.0 : 2.4) * this.bossCamZoom;
+    const targetOffsetY = (this.cameraMode === 'iso' ? 10.0 : 4.0) * this.bossCamZoom;
+    const targetOffsetZ = (this.cameraMode === 'iso' ? 8.5 : 5.0) * this.bossCamZoom;
 
     // Smoothly interpolate camera offset between modes
     this.currentCamOffset.x = THREE.MathUtils.damp(this.currentCamOffset.x, targetOffsetX, 4.5, dt);
@@ -3581,175 +3392,5 @@ export class MaxFlizGameEngine {
       this.emitFloatingToast('🚀 SPEEDRUN CONTRACT!', this.playerPos.x, this.playerPos.y + 1.2, this.playerPos.z, 'combo');
       this.spawnParticleRing(this.playerPos.x, this.playerPos.y + 0.5, this.playerPos.z, 0xffffff);
     }
-  }
-
-  public renderMinimap(canvas: HTMLCanvasElement | null) {
-    if (!canvas || this.state !== 'playing' || !this.minimapVisible) return;
-    
-    this.minimapFrameCounter++;
-    if (this.minimapFrameCounter % 2 !== 0) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    // High-tech radar dark background
-    ctx.fillStyle = '#0b0f19';
-    ctx.fillRect(0, 0, w, h);
-
-    const centerX = w / 2;
-    const centerY = h / 2;
-    const scale = this.minimapZoomScale;
-
-    // Concentric grid rings
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, w * 0.22, 0, Math.PI * 2);
-    ctx.arc(centerX, centerY, w * 0.42, 0, Math.PI * 2);
-    ctx.moveTo(centerX, 0); ctx.lineTo(centerX, h);
-    ctx.moveTo(0, centerY); ctx.lineTo(w, centerY);
-    ctx.stroke();
-
-    // 1. Level Platforms & Aisle Boundaries
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i < this.platforms.length; i++) {
-      const p = this.platforms[i];
-      const dx = (p.x - this.playerPos.x) * scale;
-      const dz = (p.z - this.playerPos.z) * scale;
-      const pw = Math.max(3, p.width * scale);
-      const pd = Math.max(3, p.depth * scale);
-
-      const mx = centerX + dx - pw / 2;
-      const my = centerY + dz - pd / 2;
-
-      if (mx + pw >= 0 && mx <= w && my + pd >= 0 && my <= h) {
-        ctx.fillRect(mx, my, pw, pd);
-        ctx.strokeRect(mx, my, pw, pd);
-      }
-    }
-
-    // 2. Collectibles & VIP Orders
-    for (let i = 0; i < this.collectibles.length; i++) {
-      const col = this.collectibles[i];
-      if (col.collected) continue;
-      const dx = (col.x - this.playerPos.x) * scale;
-      const dz = (col.z - this.playerPos.z) * scale;
-      const mx = centerX + dx;
-      const my = centerY + dz;
-
-      if (mx >= 0 && mx <= w && my >= 0 && my <= h) {
-        ctx.fillStyle = col.type === 'vip_item' || col.type === 'golden_cutter' ? '#f59e0b' : '#38bdf8';
-        ctx.beginPath();
-        ctx.arc(mx, my, col.type === 'vip_item' ? 4.5 : 3.0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // 3. Dropped Perk Crates
-    for (let i = 0; i < this.droppedPerks.length; i++) {
-      const perk = this.droppedPerks[i];
-      if (perk.collected) continue;
-      const dx = (perk.x - this.playerPos.x) * scale;
-      const dz = (perk.z - this.playerPos.z) * scale;
-      const mx = centerX + dx;
-      const my = centerY + dz;
-
-      if (mx >= 0 && mx <= w && my >= 0 && my <= h) {
-        ctx.fillStyle = '#a855f7';
-        ctx.beginPath();
-        ctx.arc(mx, my, 4.0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // 4. Exit Gate (WYJŚCIE 🏁)
-    if (this.finishGatePos) {
-      const dx = (this.finishGatePos.x - this.playerPos.x) * scale;
-      const dz = (this.finishGatePos.z - this.playerPos.z) * scale;
-      const mx = centerX + dx;
-      const my = centerY + dz;
-
-      ctx.fillStyle = '#22c55e';
-      ctx.beginPath();
-      ctx.arc(mx, my, 6.0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.fillStyle = '#4ade80';
-      ctx.font = '900 9px Google Sans, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('WYJŚCIE 🏁', mx, my - 8);
-    }
-
-    // 5. Enemies (Red markers / Alert Exclamation)
-    for (let i = 0; i < this.enemies.length; i++) {
-      const e = this.enemies[i];
-      if (e.state === 'defeated') continue;
-      const dx = (e.x - this.playerPos.x) * scale;
-      const dz = (e.z - this.playerPos.z) * scale;
-      const mx = centerX + dx;
-      const my = centerY + dz;
-
-      if (mx >= -10 && mx <= w + 10 && my >= -10 && my <= h + 10) {
-        const isBoss = e.type === 'walczak' || e.type === 'krol_leto';
-        ctx.fillStyle = isBoss ? '#ef4444' : e.state === 'chase' || e.state === 'charging' ? '#ff4d4d' : '#f43f5e';
-        const size = isBoss ? 6.5 : 4.0;
-
-        ctx.beginPath();
-        ctx.arc(mx, my, size, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (isBoss) {
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-
-        if (e.state === 'chase' || e.state === 'charging') {
-          ctx.fillStyle = '#facc15';
-          ctx.font = '900 11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('!', mx, my - size - 2);
-        }
-      }
-    }
-
-    // 6. Player Marker (Centered with direction indicator)
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(this.playerRot);
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-
-    ctx.beginPath();
-    ctx.moveTo(0, -9);
-    ctx.lineTo(6, 6);
-    ctx.lineTo(0, 3);
-    ctx.lineTo(-6, 6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.restore();
-
-    // Radar scan line effect
-    const sweep = (performance.now() * 0.0025) % (Math.PI * 2);
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(centerX + Math.cos(sweep) * (w * 0.45), centerY + Math.sin(sweep) * (h * 0.45));
-    ctx.stroke();
   }
 }

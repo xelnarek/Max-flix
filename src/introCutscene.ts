@@ -16,7 +16,6 @@ import {
 
 export interface CutsceneCallbacks {
   onComplete: () => void;
-  onStartGame?: () => void;
   onSelectCharacter?: (charId: string) => void;
 }
 
@@ -47,8 +46,6 @@ export class IntroCutsceneManager {
   private shockwaveRing!: THREE.Mesh;
   private spotlight1!: THREE.SpotLight;
   private spotlight2!: THREE.SpotLight;
-  private sirenLight!: THREE.PointLight;
-  private goldPillar!: THREE.Mesh;
   private particles: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number; maxLife: number }[] = [];
 
   // UI Elements
@@ -56,28 +53,12 @@ export class IntroCutsceneManager {
   private currentActIndex: number = -1;
   private playedTriggers: Set<string> = new Set();
 
-  private renderer: THREE.WebGLRenderer | null = null;
-  private shake: number = 0;
-
-  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer | null, callbacks: CutsceneCallbacks) {
+  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, callbacks: CutsceneCallbacks) {
     this.scene = scene;
     this.camera = camera;
-    this.renderer = renderer;
     this.callbacks = callbacks;
     this.rootGroup = new THREE.Group();
     this.rootGroup.name = 'IntroCutsceneRoot';
-  }
-
-  public setScene(scene: THREE.Scene) {
-    if (this.active && this.scene && this.scene !== scene) {
-      this.scene.remove(this.rootGroup);
-      scene.add(this.rootGroup);
-    }
-    this.scene = scene;
-  }
-
-  public setCamera(camera: THREE.PerspectiveCamera) {
-    this.camera = camera;
   }
 
   public isRunning(): boolean {
@@ -96,18 +77,15 @@ export class IntroCutsceneManager {
     this.buildActors();
     this.createUIOverlay();
 
-    if (this.scene) {
-      this.scene.add(this.rootGroup);
-    }
+    this.scene.add(this.rootGroup);
+    sound.startMusic();
     sound.playCinematicBoom();
   }
 
   public stop() {
     if (!this.active) return;
     this.active = false;
-    if (this.scene) {
-      this.scene.remove(this.rootGroup);
-    }
+    this.scene.remove(this.rootGroup);
     this.clearRoot();
     this.removeUIOverlay();
     this.callbacks.onComplete();
@@ -160,20 +138,15 @@ export class IntroCutsceneManager {
     this.rootGroup.add(trackLights);
 
     // Dramatic Dynamic Spotlights for Character Intros
-    this.spotlight1 = new THREE.SpotLight(0xfbbf24, 85, 45, Math.PI / 5, 0.4, 1);
+    this.spotlight1 = new THREE.SpotLight(0xfbbf24, 8, 28, Math.PI / 5, 0.4, 1);
     this.spotlight1.position.set(0, 10, 2);
     this.spotlight1.castShadow = true;
     this.rootGroup.add(this.spotlight1);
 
-    this.spotlight2 = new THREE.SpotLight(0x38bdf8, 65, 45, Math.PI / 5, 0.4, 1);
+    this.spotlight2 = new THREE.SpotLight(0x38bdf8, 6, 28, Math.PI / 5, 0.4, 1);
     this.spotlight2.position.set(-10, 10, 2);
     this.spotlight2.castShadow = true;
     this.rootGroup.add(this.spotlight2);
-
-    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
-    this.rootGroup.add(ambient);
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
-    this.rootGroup.add(hemi);
 
     // Five Multi-Tier Display Podiums for Finale
     const podiumXPositions = [-16, -8, 0, 8, 16];
@@ -205,23 +178,6 @@ export class IntroCutsceneManager {
     this.shockwaveRing.rotation.x = -Math.PI / 2;
     this.shockwaveRing.position.set(0, 0.05, 0);
     this.rootGroup.add(this.shockwaveRing);
-
-    // Alarm Siren Light (Act 1 Sabotage)
-    this.sirenLight = new THREE.PointLight(0xef4444, 0, 25);
-    this.sirenLight.position.set(0, 4, -4);
-    this.rootGroup.add(this.sirenLight);
-
-    // Radiant Golden Pillar (Act 2 Marcin's WZ Seal)
-    const pillarGeo = new THREE.CylinderGeometry(0.6, 1.2, 12, 24, 1, true);
-    const pillarMat = new THREE.MeshBasicMaterial({
-      color: 0xfbbf24,
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-    });
-    this.goldPillar = new THREE.Mesh(pillarGeo, pillarMat);
-    this.goldPillar.position.set(0, -20, 0);
-    this.rootGroup.add(this.goldPillar);
 
     // Dawid's 120x280 Calacatta Tile
     const tileGeo = new THREE.BoxGeometry(1.2, 2.8, 0.08);
@@ -318,24 +274,7 @@ export class IntroCutsceneManager {
 
     this.updateTimeline(dt);
     this.updateParticles(dt);
-    this.updateVisualEffects(dt);
     this.updateUIOverlay();
-  }
-
-  private updateVisualEffects(dt: number) {
-    if (this.shake > 0) {
-      this.shake -= dt;
-      const s = this.shake * 0.4;
-      this.camera.position.x += (Math.random() - 0.5) * s;
-      this.camera.position.y += (Math.random() - 0.5) * s;
-      this.camera.position.z += (Math.random() - 0.5) * s;
-    }
-
-    // Dynamic Exposure for impacts
-    if (this.renderer) {
-      const targetExposure = 1.12 + Math.max(0, Math.sin(this.currentTime * 20) * (this.shake > 0 ? 0.3 : 0));
-      this.renderer.toneMappingExposure = THREE.MathUtils.lerp(this.renderer.toneMappingExposure, targetExposure, dt * 10);
-    }
   }
 
   private updateTimeline(dt: number) {
@@ -356,12 +295,6 @@ export class IntroCutsceneManager {
       );
       this.camera.lookAt(this.walczak.group.position.x, 1.4, this.walczak.group.position.z);
 
-      // Flashing warehouse alarm siren
-      if (this.sirenLight) {
-        this.sirenLight.intensity = Math.max(0, Math.sin(t * 12)) * 350; // Massively brighter for mobile visibility
-        this.sirenLight.position.set(Math.sin(t * 3) * 8, 6.0, -4);
-      }
-
       // Walczak sneak animation
       this.walczak.group.position.x = Math.sin(t * 2.5) * 1.8;
       this.walczak.group.rotation.y = Math.PI + Math.sin(t * 2.5) * 0.4;
@@ -375,11 +308,11 @@ export class IntroCutsceneManager {
 
       this.triggerOnce('act1_scatter', 4.0, () => {
         sound.playGlassBreak();
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < 12; i++) {
           this.spawnParticle(
-            this.walczak.group.position.x + (Math.random() - 0.5) * 3,
-            0.5 + Math.random() * 0.8,
-            this.walczak.group.position.z + (Math.random() - 0.5) * 3,
+            this.walczak.group.position.x + (Math.random() - 0.5) * 2,
+            0.5,
+            this.walczak.group.position.z + (Math.random() - 0.5) * 2,
             0xf59e0b
           );
         }
@@ -391,7 +324,6 @@ export class IntroCutsceneManager {
     // -------------------------------------------------------------
     else if (t >= 7 && t < 14) {
       this.setActIndex(1);
-      if (this.sirenLight) this.sirenLight.intensity = 0;
       const actProgress = (t - 7) / 7.0;
 
       // Spotlight on Marcin
@@ -417,24 +349,15 @@ export class IntroCutsceneManager {
         this.wzSealMesh.position.set(this.marcin.group.position.x + 0.8, 0.1, 0);
         this.wzSealMesh.rotation.y += dt * 5;
 
-        // Radiant Golden Pillar of WZ Authority shoots upward
-        if (this.goldPillar) {
-          this.goldPillar.position.set(this.marcin.group.position.x + 0.8, 6, 0);
-          this.goldPillar.rotation.y += dt * 3;
-          const mat = this.goldPillar.material as THREE.MeshBasicMaterial;
-          mat.opacity = Math.max(0, 0.75 - (t - 11) * 0.25);
-        }
-
         this.triggerOnce('act2_seal_slam', 11.2, () => {
           sound.playAbility('marcin');
           sound.playCinematicBoom();
-          this.shake = 0.55;
           this.shockwaveRing.position.set(this.marcin.group.position.x + 0.8, 0.05, 0);
           this.shockwaveRing.scale.set(1, 1, 1);
-          (this.shockwaveRing.material as THREE.MeshBasicMaterial).opacity = 0.95;
+          (this.shockwaveRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
         });
 
-        if (this.shockwaveRing.scale.x < 16) {
+        if (this.shockwaveRing.scale.x < 15) {
           this.shockwaveRing.scale.addScalar(dt * 18);
           (this.shockwaveRing.material as THREE.MeshBasicMaterial).opacity = Math.max(
             0,
@@ -453,7 +376,6 @@ export class IntroCutsceneManager {
     // -------------------------------------------------------------
     else if (t >= 14 && t < 22) {
       this.setActIndex(2);
-      if (this.goldPillar) (this.goldPillar.material as THREE.MeshBasicMaterial).opacity = 0;
       const actProgress = (t - 14) / 8.0;
 
       // Grzesiek drives in on pallet jack from left, Dawid jumps from top right
@@ -465,12 +387,9 @@ export class IntroCutsceneManager {
       this.dawid.group.position.set(14 - actProgress * 10, 0.4 + Math.abs(Math.sin(t * 4)) * 1.5, 1);
       this.dawid.group.rotation.y = -Math.PI / 2;
 
-      // Dawid throws Calacatta Slab high in the air in an arc
-      const tossProgress = ((t - 14) % 3.5) / 3.5;
-      const tossY = 1.2 + Math.sin(tossProgress * Math.PI) * 2.6;
-      this.dawidTileMesh.position.set(this.dawid.group.position.x, this.dawid.group.position.y + tossY, 1);
-      this.dawidTileMesh.rotation.x += dt * 4;
-      this.dawidTileMesh.rotation.y += dt * 5;
+      // Dawid carrying Calacatta Tile
+      this.dawidTileMesh.position.set(this.dawid.group.position.x, this.dawid.group.position.y + 1.2, 1);
+      this.dawidTileMesh.rotation.z = Math.sin(t * 3) * 0.3;
 
       // Camera: High energy whip-pan between Grzesiek and Dawid
       this.camera.position.set(
@@ -488,8 +407,7 @@ export class IntroCutsceneManager {
       this.triggerOnce('act3_dawid_landing', 18.5, () => {
         sound.playAbility('dawid');
         sound.playCinematicBoom();
-        this.shake = 0.45;
-        for (let i = 0; i < 24; i++) {
+        for (let i = 0; i < 20; i++) {
           this.spawnParticle(this.dawid.group.position.x, 0.4, 1, 0x38bdf8);
         }
       });
@@ -509,10 +427,9 @@ export class IntroCutsceneManager {
       this.piotr.group.position.set(-6 + actProgress * 4, 0.4, -1);
       this.piotr.group.rotation.y = Math.PI / 4;
 
-      // Mateusz casts giant blue BSOD Hologram with glitch pulse
-      this.bsodScreenMesh.position.set(2, 2.5 + Math.sin(t * 4) * 0.15, 0);
+      // Mateusz casts giant blue BSOD Hologram
+      this.bsodScreenMesh.position.set(2, 2.5, 0);
       this.bsodScreenMesh.rotation.y = Math.sin(t * 2) * 0.2;
-      (this.bsodScreenMesh.material as THREE.MeshBasicMaterial).opacity = 0.85 + Math.sin(t * 16) * 0.12;
 
       // Piotr ignites Bimber Fire Puddle
       this.bimberFirePuddle.position.set(-2, 0, 0);
@@ -524,19 +441,12 @@ export class IntroCutsceneManager {
 
       this.triggerOnce('act4_bsod', 23.0, () => {
         sound.playCoffeePowerup();
-        for (let i = 0; i < 16; i++) {
-          this.spawnParticle(2 + (Math.random() - 0.5) * 3, 2.5, (Math.random() - 0.5) * 2, 0x38bdf8);
-        }
       });
 
       this.triggerOnce('act4_bimber_fire', 26.5, () => {
         sound.playAbility('piotr');
         sound.playFireCrackle();
         sound.playCinematicBoom();
-        this.shake = 0.6;
-        for (let i = 0; i < 20; i++) {
-          this.spawnParticle(-2 + (Math.random() - 0.5) * 3, 0.5, (Math.random() - 0.5) * 3, 0xf97316);
-        }
       });
     }
 
@@ -564,12 +474,6 @@ export class IntroCutsceneManager {
       this.piotr.group.position.set(podiumXs[4], 0.65, -2);
       this.piotr.group.rotation.y = 0;
 
-      // Spotlights dance across the triumphant heroes
-      this.spotlight1.position.set(Math.sin(t * 1.5) * 14, 10, 4);
-      this.spotlight1.target = this.dawid.group;
-      this.spotlight2.position.set(-Math.sin(t * 1.5) * 14, 10, 4);
-      this.spotlight2.target = this.grzesiek.group;
-
       // Walczak defeated flees on a wheelbarrow off screen to the right
       this.walczak.group.position.set(12 + actProgress * 15, 0.4, 2);
       this.walczak.group.rotation.y = Math.PI / 2;
@@ -583,7 +487,7 @@ export class IntroCutsceneManager {
       });
 
       // Confetti & sparkle shower
-      if (Math.random() < 0.7) {
+      if (Math.random() < 0.6) {
         const colors = [0xf59e0b, 0x38bdf8, 0x4ade80, 0xec4899, 0xfacc15];
         this.spawnParticle(
           (Math.random() - 0.5) * 36,
@@ -643,8 +547,6 @@ export class IntroCutsceneManager {
 
     overlay.innerHTML = `
       <div class="vhs-scanline-fx"></div>
-      <div class="cinematic-vignette"></div>
-      <div class="cinematic-grain"></div>
       <div class="cinematic-top-bar">
         <div class="cinematic-badge">
           <span class="rec-dot">🔴</span>
@@ -700,7 +602,6 @@ export class IntroCutsceneManager {
 
     document.getElementById('btn-cutscene-playnow')?.addEventListener('click', () => {
       this.stop();
-      this.callbacks.onStartGame?.();
     });
 
     // Act step clicks
