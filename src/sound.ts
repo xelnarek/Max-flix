@@ -25,12 +25,7 @@ class SoundEngine {
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
-    if (this.isMuted && this.musicPlaying) {
-      this.stopMusic();
-      this.musicPlaying = true;
-    } else if (!this.isMuted && this.musicPlaying) {
-      this.startMusic();
-    }
+    this.stopMusic();
     return this.isMuted;
   }
 
@@ -345,81 +340,8 @@ class SoundEngine {
   }
 
   public startMusic() {
-    this.musicPlaying = true;
-    if (this.isMuted || this.musicInterval !== null) return;
-    this.initCtx();
-
-    // Catchy Max-Fliz warehouse soundtrack: Bass + Lead + Chords + Rhythm
-    const bassNotes = [130.81, 130.81, 164.81, 196.0, 146.83, 146.83, 174.61, 220.0];
-    const leadNotes = [523.25, 0, 659.25, 783.99, 587.33, 659.25, 698.46, 880.0];
-
-    this.musicStep = 0;
-    this.musicInterval = window.setInterval(() => {
-      if (!this.ctx || this.isMuted) return;
-      const t = this.ctx.currentTime;
-      const step = this.musicStep % 8;
-
-      // 1. Kick on 0 & 4
-      if (step === 0 || step === 4) {
-        const kick = this.ctx.createOscillator();
-        const kGain = this.ctx.createGain();
-        kick.type = 'sine';
-        kick.frequency.setValueAtTime(140, t);
-        kick.frequency.exponentialRampToValueAtTime(35, t + 0.1);
-        kGain.gain.setValueAtTime(0.25, t);
-        kGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-        kick.connect(kGain);
-        kGain.connect(this.ctx.destination);
-        kick.start(t);
-        kick.stop(t + 0.13);
-      }
-
-      // 2. Snare / Clack on 2 & 6
-      if (step === 2 || step === 6) {
-        const snare = this.ctx.createOscillator();
-        const sGain = this.ctx.createGain();
-        snare.type = 'triangle';
-        snare.frequency.setValueAtTime(260, t);
-        sGain.gain.setValueAtTime(0.12, t);
-        sGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-        snare.connect(sGain);
-        sGain.connect(this.ctx.destination);
-        snare.start(t);
-        snare.stop(t + 0.09);
-      }
-
-      // 3. Bass note
-      const bFreq = bassNotes[step];
-      if (bFreq > 0) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(bFreq, t);
-        gain.gain.setValueAtTime(0.12, t);
-        gain.gain.exponentialRampToValueAtTime(0.005, t + 0.16);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.18);
-      }
-
-      // 4. Lead note
-      const lFreq = leadNotes[step];
-      if (lFreq > 0) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(lFreq, t);
-        gain.gain.setValueAtTime(0.065, t);
-        gain.gain.exponentialRampToValueAtTime(0.002, t + 0.14);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.16);
-      }
-
-      this.musicStep++;
-    }, 160);
+    this.musicPlaying = false;
+    this.stopMusic();
   }
 
   public stopMusic() {
@@ -427,6 +349,7 @@ class SoundEngine {
       clearInterval(this.musicInterval);
       this.musicInterval = null;
     }
+    this.musicPlaying = false;
   }
 
   public playPerkPickup() {

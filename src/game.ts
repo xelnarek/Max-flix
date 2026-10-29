@@ -122,6 +122,7 @@ export class MaxFlizGameEngine {
   private camZoomFactor = 1.0;
   private minimapZoomScale = 3.5;
   private minimapVisible = true;
+  private minimapFrameCounter = 0;
   private finishGatePos = new THREE.Vector3(30, 0, 0);
   private smoothCamY = 0.5;
   private currentCamOffset = new THREE.Vector3(9.0, 16.0, 15.0);
@@ -467,7 +468,6 @@ export class MaxFlizGameEngine {
     this.loadLevel(levelId);
     this.callbacks.onHpUpdate(this.hp, this.maxHp);
     this.callbacks.onScoreUpdate(this.score, this.collectedVipCount, this.totalVipCount);
-    sound.startMusic();
     this.sayRandomVoiceLine();
   }
 
@@ -1778,45 +1778,47 @@ export class MaxFlizGameEngine {
   public update(dt: number) {
     if (this.state !== 'playing' && this.state !== 'title') return;
 
+    let effectiveDt = dt;
     if (this.hitStopTimer > 0) {
-      this.hitStopTimer -= dt;
-      return;
+      this.hitStopTimer = Math.max(0, this.hitStopTimer - dt);
+      effectiveDt = dt * 0.2; // Dramatic slow-mo impact instead of a full freeze
     }
+    const simDt = effectiveDt;
 
-    this.updatePerkTimers(dt);
+    this.updatePerkTimers(simDt);
 
     if (this.state === 'playing') {
-      if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
-      if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - dt);
-      if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - dt);
-      if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - dt);
-      if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - dt);
-      if (this.finishWarningTimer > 0) this.finishWarningTimer = Math.max(0, this.finishWarningTimer - dt);
+      if (this.invulnerableTimer > 0) this.invulnerableTimer -= simDt;
+      if (this.marcinReclamationTimer > 0) this.marcinReclamationTimer = Math.max(0, this.marcinReclamationTimer - simDt);
+      if (this.grzesiekCrushTimer > 0) this.grzesiekCrushTimer = Math.max(0, this.grzesiekCrushTimer - simDt);
+      if (this.grzesiekCrushPulse > 0) this.grzesiekCrushPulse = Math.max(0, this.grzesiekCrushPulse - simDt);
+      if (this.mateuszLagTimer > 0) this.mateuszLagTimer = Math.max(0, this.mateuszLagTimer - simDt);
+      if (this.finishWarningTimer > 0) this.finishWarningTimer = Math.max(0, this.finishWarningTimer - simDt);
 
       if (this.speechBubbleTimer > 0) {
-        this.speechBubbleTimer -= dt;
+        this.speechBubbleTimer -= simDt;
         if (this.speechBubbleTimer <= 0) {
           this.callbacks.onSpeechBubble('');
         }
       }
 
       if (this.comboTimer > 0) {
-        this.comboTimer -= dt;
+        this.comboTimer -= simDt;
         if (this.comboTimer <= 0) {
           this.comboStreak = 0;
         }
       }
 
-      this.updatePlayerMovement(dt);
-      this.updateCollectibles(dt);
-      this.updateDroppedPerks(dt);
-      this.updateHazards(dt);
-      this.updateEnemies(dt);
-      this.updateProjectiles(dt);
-      this.updateBimberMolotovs(dt);
-      this.updateBimberFirePuddles(dt);
-      this.updateSpecialEffects(dt);
-      this.updateParticles(dt);
+      this.updatePlayerMovement(simDt);
+      this.updateCollectibles(simDt);
+      this.updateDroppedPerks(simDt);
+      this.updateHazards(simDt);
+      this.updateEnemies(simDt);
+      this.updateProjectiles(simDt);
+      this.updateBimberMolotovs(simDt);
+      this.updateBimberFirePuddles(simDt);
+      this.updateSpecialEffects(simDt);
+      this.updateParticles(simDt);
     }
 
     if (this.bloomPulseTimer > 0) {
@@ -1852,32 +1854,31 @@ export class MaxFlizGameEngine {
   }
 
   private updatePlayerMovement(dt: number) {
-    let inputX = 0;
-    let inputZ = 0;
+    let screenX = 0;
+    let screenY = 0;
 
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) {
-      inputX += 0.707;
-      inputZ -= 0.707;
-    }
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) {
-      inputX -= 0.707;
-      inputZ += 0.707;
-    }
-    if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-      inputX -= 0.707;
-      inputZ -= 0.707;
-    }
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-      inputX += 0.707;
-      inputZ += 0.707;
-    }
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) screenX += 1;
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) screenX -= 1;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) screenY += 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) screenY -= 1;
 
     if (Math.abs(this.virtualJoystick.x) > 0.08 || Math.abs(this.virtualJoystick.y) > 0.08) {
-      const jx = this.virtualJoystick.x;
-      const jy = this.virtualJoystick.y;
-      inputX = jx * 0.707 + jy * 0.707;
-      inputZ = -jx * 0.707 + jy * 0.707;
+      screenX = this.virtualJoystick.x;
+      screenY = -this.virtualJoystick.y; // dragging up moves forward
     }
+
+    // Dynamic camera-aligned projection on the horizontal floor:
+    // Screen UP moves along camera forward projection; Screen RIGHT moves along camera right projection.
+    const camToPlayerX = this.playerPos.x - this.camera.position.x;
+    const camToPlayerZ = this.playerPos.z - this.camera.position.z;
+    const camFwdLen = Math.hypot(camToPlayerX, camToPlayerZ);
+    const fwdX = camFwdLen > 0.001 ? camToPlayerX / camFwdLen : 0;
+    const fwdZ = camFwdLen > 0.001 ? camToPlayerZ / camFwdLen : -1;
+    const rightX = -fwdZ;
+    const rightZ = fwdX;
+
+    let inputX = rightX * screenX + fwdX * screenY;
+    let inputZ = rightZ * screenX + fwdZ * screenY;
 
     const inputLen = Math.hypot(inputX, inputZ);
     if (inputLen > 1) {
@@ -1896,16 +1897,16 @@ export class MaxFlizGameEngine {
       }
     }
 
-    if (inputLen > 0.1) {
+    if (inputLen > 0.08) {
       const targetX = inputX * speed;
       const targetZ = inputZ * speed;
-      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, targetX, 12, dt);
-      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, targetZ, 12, dt);
+      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, targetX, 22, dt);
+      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, targetZ, 22, dt);
       this.playerVel.x = THREE.MathUtils.clamp(this.playerVel.x, -speed * 1.35, speed * 1.35);
       this.playerVel.z = THREE.MathUtils.clamp(this.playerVel.z, -speed * 1.35, speed * 1.35);
-      this.playerRot = Math.atan2(this.playerVel.x, this.playerVel.z);
+      this.playerRot = Math.atan2(inputX, inputZ);
 
-      this.walkCycle += dt * 14;
+      this.walkCycle += dt * 15;
       if (this.leftLeg && this.rightLeg && this.leftArm && this.rightArm) {
         this.leftLeg.rotation.x = Math.sin(this.walkCycle) * 0.6;
         this.rightLeg.rotation.x = -Math.sin(this.walkCycle) * 0.6;
@@ -1913,8 +1914,8 @@ export class MaxFlizGameEngine {
         this.rightArm.rotation.x = Math.sin(this.walkCycle) * 0.6;
       }
     } else {
-      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, 0, 16, dt);
-      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, 0, 16, dt);
+      this.playerVel.x = THREE.MathUtils.damp(this.playerVel.x, 0, 24, dt);
+      this.playerVel.z = THREE.MathUtils.damp(this.playerVel.z, 0, 24, dt);
       if (this.leftLeg && this.rightLeg && this.leftArm && this.rightArm) {
         this.leftLeg.rotation.x = 0;
         this.rightLeg.rotation.x = 0;
@@ -2153,91 +2154,98 @@ export class MaxFlizGameEngine {
     });
   }
 
-  private updateEnemies(dt: number) {
-    const ENEMY_QUOTES: Record<string, string[]> = {
-      customer: [
-        "Gdzie moje kafelki?!",
-        "Awantura o rabat 10%!",
-        "Chcę widzieć kierownika!",
-        "Płytki miały być gładkie!"
-      ],
-      architect: [
-        "To ma być ecru czy beż?!",
-        "Brak dylatacji na podłodze!",
-        "Gres niezgodny z projektem!",
-        "Wizualizacja mówiła inaczej!"
-      ],
-      agv_robot: [
-        "BEEP BOOP ZLEW B4!",
-        "Uwaga! Transport palety!",
-        "Błąd czujnika przeszkód!",
-        "Sztaplowanie w toku!"
-      ],
-      inspector: [
-        "Gdzie kask BHP?!",
-        "Brak protokołu odbioru!",
-        "Mandat 500 PLN za bałagan!",
-        "Przekroczenie normy hałasu!"
-      ],
-      handlowiec: [
-        "Mam super ofertę na zlew!",
-        "Rabat 3% tylko dzisiaj!",
-        "A może zestaw baterii?!",
-        "Darmowa dostawa do hotelu!"
-      ],
-      monter: [
-        "Dobiję to gumowym młotkiem!",
-        "Brak poziomu w alei!",
-        "Cięcie po skosie 45°!",
-        "Mieszam klej wysokie wiązanie!"
-      ],
-      piorun_dron: [
-        "BZZZT SKAN KODU B4!",
-        "Niezgodność numeru WZ!",
-        "Skanowanie palety A1!",
-        "Detekcja ruchu w alei!"
-      ],
-      elite_walczak_guard: [
-        "Strefa Walczaka zamknięta!",
-        "Brak przepustki B4!",
-        "Odwrót z magazynu!",
-        "Tarcza BHP w gotowości!"
-      ],
-      kurier: [
-        "Dostawa DPD od Rudego z DPD! Załatwię Johnny Walkera tanio",
-        "Paczka ekspresowa DPD dla VIP! Załatwię Johnny Walkera tanio",
-        "Paczka od Rudego! Załatwię Johnny Walkera tanio",
-        "Johnny Walker Express u drzwi! Załatwię Johnny Walkera tanio"
-      ],
-      przedstawiciel_włoski: [
-        "Mamma mia, armatura de lux!",
-        "Złote baterie z Mediolanu!",
-        "Prego, uwaga na marmur!",
-        "Amore, to jest prawdziwy styl!"
-      ],
-      sztaplar_szalony: [
-        "Z drogi, 3 tony ładunku!",
-        "Paleciak bez hamulców!",
-        "Uwaga wyjazd z alei C!",
-        "Czysta moc 300 Nm!"
-      ],
-      walczak: [
-        "Ten magazyn jest MÓJ!",
-        "Anuluję wszystkie faktury!",
-        "Zawiadamiam Centralę!",
-        "Nikt tu nie wygra ze mną!"
-      ],
-      krol_leto: [
-        "ZWALNIAM CIĘ DYSCYPLINARNIE!",
-        "Dyscyplinarka w trybie natychmiastowym!",
-        "Oddawaj kask BHP i przepustkę!",
-        "Moja decyzja o zwolnieniu jest OSTATECZNA!",
-        "Błąd w WZ-tce? To koniec Twojej kariery!"
-      ]
-    };
+  private static readonly ENEMY_QUOTES: Record<string, string[]> = {
+    customer: [
+      "Gdzie moje kafelki?!",
+      "Awantura o rabat 10%!",
+      "Chcę widzieć kierownika!",
+      "Płytki miały być gładkie!"
+    ],
+    architect: [
+      "To ma być ecru czy beż?!",
+      "Brak dylatacji na podłodze!",
+      "Gres niezgodny z projektem!",
+      "Wizualizacja mówiła inaczej!"
+    ],
+    agv_robot: [
+      "BEEP BOOP ZLEW B4!",
+      "Uwaga! Transport palety!",
+      "Błąd czujnika przeszkód!",
+      "Sztaplowanie w toku!"
+    ],
+    inspector: [
+      "Gdzie kask BHP?!",
+      "Brak protokołu odbioru!",
+      "Mandat 500 PLN za bałagan!",
+      "Przekroczenie normy hałasu!"
+    ],
+    handlowiec: [
+      "Mam super ofertę na zlew!",
+      "Rabat 3% tylko dzisiaj!",
+      "A może zestaw baterii?!",
+      "Darmowa dostawa do hotelu!"
+    ],
+    monter: [
+      "Dobiję to gumowym młotkiem!",
+      "Brak poziomu w alei!",
+      "Cięcie po skosie 45°!",
+      "Mieszam klej wysokie wiązanie!"
+    ],
+    piorun_dron: [
+      "BZZZT SKAN KODU B4!",
+      "Niezgodność numeru WZ!",
+      "Skanowanie palety A1!",
+      "Detekcja ruchu w alei!"
+    ],
+    elite_walczak_guard: [
+      "Strefa Walczaka zamknięta!",
+      "Brak przepustki B4!",
+      "Odwrót z magazynu!",
+      "Tarcza BHP w gotowości!"
+    ],
+    kurier: [
+      "Dostawa DPD od Rudego z DPD! Załatwię Johnny Walkera tanio",
+      "Paczka ekspresowa DPD dla VIP! Załatwię Johnny Walkera tanio",
+      "Paczka od Rudego! Załatwię Johnny Walkera tanio",
+      "Johnny Walker Express u drzwi! Załatwię Johnny Walkera tanio"
+    ],
+    przedstawiciel_włoski: [
+      "Mamma mia, armatura de lux!",
+      "Zlatane baterie z Mediolanu!",
+      "Prego, uwaga na marmur!",
+      "Amore, to jest prawdziwy styl!"
+    ],
+    sztaplar_szalony: [
+      "Z drogi, 3 tony ładunku!",
+      "Paleciak bez hamulców!",
+      "Uwaga wyjazd z alei C!",
+      "Czysta moc 300 Nm!"
+    ],
+    walczak: [
+      "Ten magazyn jest MÓJ!",
+      "Anuluję wszystkie faktury!",
+      "Zawiadamiam Centralę!",
+      "Nikt tu nie wygra ze mną!"
+    ],
+    krol_leto: [
+      "ZWALNIAM CIĘ DYSCYPLINARNIE!",
+      "Dyscyplinarka w trybie natychmiastowym!",
+      "Oddawaj kask BHP i przepustkę!",
+      "Moja decyzja o zwolnieniu jest OSTATECZNA!",
+      "Błąd w WZ-tce? To koniec Twojej kariery!"
+    ]
+  };
 
+  private updateEnemies(dt: number) {
     this.enemies.forEach((e) => {
       if (e.state === 'defeated' || !e.mesh) return;
+
+      const dx = this.playerPos.x - e.x;
+      const dz = this.playerPos.z - e.z;
+      const distToPlayer = Math.hypot(dx, dz);
+
+      // Distance culling: skip heavy updates for distant non-boss enemies
+      if (distToPlayer > 42 && e.type !== 'walczak' && e.type !== 'krol_leto') return;
 
       if (!e.hpBar) {
         e.hpBar = new THREE.Group();
@@ -2248,12 +2256,16 @@ export class MaxFlizGameEngine {
         e.hpBar.position.y = e.type === 'walczak' || e.type === 'krol_leto' ? 2.4 : 1.65;
         e.mesh.add(e.hpBar);
         e.hpFill = fill;
+        e.hpBar.visible = false;
       }
       if (e.hpBar) {
-        e.hpBar.lookAt(this.camera.position);
-        e.hpFill.scale.x = Math.max(0, e.hp / e.maxHp);
-        e.hpFill.position.x = (e.hpFill.scale.x - 1) * 0.4;
-        e.hpBar.visible = e.hp < e.maxHp; // Only show if damaged
+        const isDamaged = e.hp < e.maxHp;
+        e.hpBar.visible = isDamaged;
+        if (isDamaged) {
+          e.hpBar.lookAt(this.camera.position);
+          e.hpFill.scale.x = Math.max(0, e.hp / e.maxHp);
+          e.hpFill.position.x = (e.hpFill.scale.x - 1) * 0.4;
+        }
       }
 
       e.walkCycle += dt * 8;
@@ -2264,7 +2276,7 @@ export class MaxFlizGameEngine {
 
       // TACTICAL INDICATOR
       if (e.state === 'chase' || e.state === 'searching') {
-        const pulse = 1.0 + Math.sin(performance.now() * 0.01) * 0.2;
+        const pulse = 1.0 + Math.sin(performance.now() * 0.01) * 0.15;
         e.mesh.scale.set(pulse, pulse, pulse);
       } else {
         e.mesh.scale.set(1, 1, 1);
@@ -2278,11 +2290,6 @@ export class MaxFlizGameEngine {
         }
         return;
       }
-
-      // Dynamic AI Intelligence
-      const dx = this.playerPos.x - e.x;
-      const dz = this.playerPos.z - e.z;
-      const distToPlayer = Math.hypot(dx, dz);
 
       // SIGHT & DETECTION LOGIC
       const detectionRange = (e.type === 'walczak' || e.type === 'krol_leto') ? 16.0 : (e.state === 'chase' ? 12.0 : 8.5);
@@ -2317,7 +2324,7 @@ export class MaxFlizGameEngine {
       e.shoutTimer = (e.shoutTimer || 0) - dt;
       if (e.shoutTimer <= 0 && distToPlayer < 12.0) {
         e.shoutTimer = 3.2 + Math.random() * 2.8;
-        const quotes = ENEMY_QUOTES[e.type] || ["Z drogi!"];
+        const quotes = MaxFlizGameEngine.ENEMY_QUOTES[e.type] || ["Z drogi!"];
         const quote = quotes[Math.floor(Math.random() * quotes.length)];
         e.shoutText = quote;
         this.emitFloatingToast(quote, e.x, e.y + 1.25, e.z, 'enemy_shout', { enemyType: e.type });
@@ -2784,11 +2791,15 @@ export class MaxFlizGameEngine {
   }
 
   private updateParticles(dt: number) {
+    if (this.particles.length > 80) {
+      const excess = this.particles.splice(0, this.particles.length - 80);
+      excess.forEach((p) => this.levelRoot.remove(p.mesh));
+    }
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
       pt.life -= dt;
       pt.mesh.position.addScaledVector(pt.vel, dt);
-      const scale = (pt.life / pt.maxLife);
+      const scale = Math.max(0.001, pt.life / pt.maxLife);
       pt.mesh.scale.setScalar(scale);
 
       if (pt.life <= 0) {
@@ -2796,6 +2807,11 @@ export class MaxFlizGameEngine {
         this.particles.splice(i, 1);
       }
     }
+  }
+
+  public triggerJump() {
+    if (this.state !== 'playing') return;
+    this.jumpBufferTimer = 0.22;
   }
 
   public triggerAttack() {
@@ -3553,6 +3569,10 @@ export class MaxFlizGameEngine {
 
   public renderMinimap(canvas: HTMLCanvasElement | null) {
     if (!canvas || this.state !== 'playing' || !this.minimapVisible) return;
+    
+    this.minimapFrameCounter++;
+    if (this.minimapFrameCounter % 2 !== 0) return;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 

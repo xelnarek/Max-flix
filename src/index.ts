@@ -74,8 +74,6 @@ class MaxFlizScene extends xb.Script {
     const hudScore = document.getElementById('hud-score')!;
     const hudVip = document.getElementById('hud-vip')!;
     const hudTimer = document.getElementById('hud-timer')!;
-    const speechBubble = document.getElementById('speech-bubble')!;
-    const speechBubbleText = document.getElementById('speech-bubble-text')!;
     const abilityName = document.getElementById('ability-name')!;
     const abilityCooldownOverlay = document.getElementById('ability-cooldown-overlay')!;
     const abilityIcon = document.getElementById('ability-icon')!;
@@ -668,6 +666,14 @@ class MaxFlizScene extends xb.Script {
       startingGame = true;
       e?.stopPropagation();
 
+      // Cleanly stop any running intros to ensure engine update loop runs smoothly
+      if (this.pixelIntro && this.pixelIntro.isRunning()) {
+        this.pixelIntro.stop();
+      }
+      if (this.cutscene && this.cutscene.isRunning()) {
+        this.cutscene.stop();
+      }
+
       const storyModal = document.getElementById('story-intro-modal');
       storyModal?.classList.add('hidden');
       titleScreen.classList.add('hidden');
@@ -744,10 +750,13 @@ class MaxFlizScene extends xb.Script {
     document.getElementById('btn-top-pause')?.addEventListener('click', handlePause);
     document.getElementById('btn-pause')?.addEventListener('click', handlePause);
 
-    this.cutscene = new IntroCutsceneManager(xb.core.scene, this.camera, {
+    this.cutscene = new IntroCutsceneManager(xb.core.scene, this.camera, xb.core.renderer as THREE.WebGLRenderer, {
       onComplete: () => {
         titleScreen.classList.remove('hidden');
         this.engine.startTitle();
+      },
+      onStartGame: () => {
+        doStartGame();
       },
     });
 
@@ -798,11 +807,22 @@ class MaxFlizScene extends xb.Script {
       }
     };
 
-    btnOpenStory?.addEventListener('click', () => {
+    const launch3dCutscene = () => {
+      titleScreen.classList.add('hidden');
+      storyModal?.classList.add('hidden');
+      this.cutscene.start();
+    };
+
+    const launchPixelIntro = () => {
       titleScreen.classList.add('hidden');
       storyModal?.classList.add('hidden');
       this.pixelIntro.start();
-    });
+    };
+
+    btnOpenStory?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-open-3d-cutscene')?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-top-intro-3d')?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-open-pixel-intro')?.addEventListener('click', launchPixelIntro);
 
     btnCloseStory?.addEventListener('click', () => {
       storyModal?.classList.add('hidden');
@@ -951,8 +971,7 @@ class MaxFlizScene extends xb.Script {
     this.setupTouchControls();
 
     this.engine.startTitle();
-    // Launch animated 16-bit pixel art intro movie automatically on initial load!
-    this.pixelIntro.start();
+    // Start on title screen with immediate responsiveness; intros available on demand!
   }
 
   private setupTouchControls() {
@@ -1040,24 +1059,30 @@ class MaxFlizScene extends xb.Script {
     const jumpBtn = document.getElementById('btn-touch-jump');
     jumpBtn?.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+      this.engine.triggerJump();
     }, { passive: false });
-    jumpBtn?.addEventListener('touchend', (e) => {
+    jumpBtn?.addEventListener('click', (e) => {
       e.preventDefault();
-      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space' }));
-    }, { passive: false });
+      this.engine.triggerJump();
+    });
 
     const abilityBtn = document.getElementById('btn-touch-ability');
     abilityBtn?.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.engine.triggerAbility();
     }, { passive: false });
+    abilityBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.engine.triggerAbility();
+    });
   }
 
   update() {
-    const dt = xb.getDeltaTime();
+    const rawDt = xb.getDeltaTime();
+    const dt = Math.min(Math.max(rawDt || 0.016, 0.001), 0.08);
+
     if (this.pixelIntro && this.pixelIntro.isRunning()) {
-      // Pixel intro updates internally via rAF, but keep time in sync
+      // Pixel intro updates internally via rAF
     } else if (this.cutscene && this.cutscene.isRunning()) {
       this.cutscene.update(dt);
     } else if (this.engine) {
@@ -1075,7 +1100,7 @@ class MaxFlizScene extends xb.Script {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function startApp() {
   const options = new xb.Options();
   options.setAppTitle('Max-Fliz Magazyn Showdown 3D');
   options.setAppDescription('Trójwymiarowa platformówka izometryczna w szalonym magazynie firmy Max-Fliz.');
@@ -1109,4 +1134,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (xrWrapper) {
     xrWrapper.style.display = 'none';
   }
-});
+
+  const titleScreen = document.getElementById('title-screen');
+  if (titleScreen) {
+    titleScreen.classList.remove('hidden');
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => void startApp());
+} else {
+  void startApp();
+}
+

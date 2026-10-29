@@ -47,7 +47,6 @@ export class PixelIntroManager {
     this.particles = [];
 
     this.mountOverlay();
-    sound.startMusic();
     sound.playCinematicBoom();
 
     this.lastFrameTime = performance.now();
@@ -93,6 +92,8 @@ export class PixelIntroManager {
 
     overlay.innerHTML = `
       <div class="pixel-crt-scanlines"></div>
+      <div class="cinematic-vignette"></div>
+      <div class="cinematic-grain"></div>
       <div class="pixel-vhs-header">
         <div class="pixel-badge">
           <span class="pixel-rec-dot">🔴</span>
