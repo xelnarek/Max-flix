@@ -284,7 +284,7 @@ export class MaxFlizGameEngine {
 
     this.setupLighting();
     this.setupInput();
-    this.loadLevel(1);
+    // loadLevel(1) removed from constructor to prevent blocking main thread on boot
   }
 
   private setupLighting() {
@@ -407,6 +407,17 @@ export class MaxFlizGameEngine {
     return this.state === 'paused';
   }
 
+  public setCamera(camera: THREE.PerspectiveCamera) {
+    this.camera = camera;
+  }
+
+  public setScene(scene: THREE.Scene) {
+    this.scene = scene;
+    if (!this.scene.children.includes(this.levelRoot)) {
+      this.scene.add(this.levelRoot);
+    }
+  }
+
   private rebuildPlayerMesh() {
     if (this.playerGroup) {
       this.levelRoot.remove(this.playerGroup);
@@ -443,6 +454,11 @@ export class MaxFlizGameEngine {
     this.rebuildPlayerMesh();
     this.playerPos.set(0, 0.5, 0);
     this.callbacks.onBossUpdate?.('', 0, 0, false);
+    
+    // Build initial level for title visual if not already built
+    if (this.levelRoot.children.length === 0) {
+      this.loadLevel(1);
+    }
   }
 
   public startGame(levelId = 1) {

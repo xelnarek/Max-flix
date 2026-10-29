@@ -68,6 +68,18 @@ export class IntroCutsceneManager {
     this.rootGroup.name = 'IntroCutsceneRoot';
   }
 
+  public setScene(scene: THREE.Scene) {
+    if (this.active && this.scene && this.scene !== scene) {
+      this.scene.remove(this.rootGroup);
+      scene.add(this.rootGroup);
+    }
+    this.scene = scene;
+  }
+
+  public setCamera(camera: THREE.PerspectiveCamera) {
+    this.camera = camera;
+  }
+
   public isRunning(): boolean {
     return this.active;
   }
@@ -84,14 +96,18 @@ export class IntroCutsceneManager {
     this.buildActors();
     this.createUIOverlay();
 
-    this.scene.add(this.rootGroup);
+    if (this.scene) {
+      this.scene.add(this.rootGroup);
+    }
     sound.playCinematicBoom();
   }
 
   public stop() {
     if (!this.active) return;
     this.active = false;
-    this.scene.remove(this.rootGroup);
+    if (this.scene) {
+      this.scene.remove(this.rootGroup);
+    }
     this.clearRoot();
     this.removeUIOverlay();
     this.callbacks.onComplete();
@@ -144,15 +160,20 @@ export class IntroCutsceneManager {
     this.rootGroup.add(trackLights);
 
     // Dramatic Dynamic Spotlights for Character Intros
-    this.spotlight1 = new THREE.SpotLight(0xfbbf24, 8, 28, Math.PI / 5, 0.4, 1);
+    this.spotlight1 = new THREE.SpotLight(0xfbbf24, 85, 45, Math.PI / 5, 0.4, 1);
     this.spotlight1.position.set(0, 10, 2);
     this.spotlight1.castShadow = true;
     this.rootGroup.add(this.spotlight1);
 
-    this.spotlight2 = new THREE.SpotLight(0x38bdf8, 6, 28, Math.PI / 5, 0.4, 1);
+    this.spotlight2 = new THREE.SpotLight(0x38bdf8, 65, 45, Math.PI / 5, 0.4, 1);
     this.spotlight2.position.set(-10, 10, 2);
     this.spotlight2.castShadow = true;
     this.rootGroup.add(this.spotlight2);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+    this.rootGroup.add(ambient);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+    this.rootGroup.add(hemi);
 
     // Five Multi-Tier Display Podiums for Finale
     const podiumXPositions = [-16, -8, 0, 8, 16];
@@ -337,8 +358,8 @@ export class IntroCutsceneManager {
 
       // Flashing warehouse alarm siren
       if (this.sirenLight) {
-        this.sirenLight.intensity = Math.max(0, Math.sin(t * 12)) * 26;
-        this.sirenLight.position.set(Math.sin(t * 3) * 8, 4.5, -4);
+        this.sirenLight.intensity = Math.max(0, Math.sin(t * 12)) * 350; // Massively brighter for mobile visibility
+        this.sirenLight.position.set(Math.sin(t * 3) * 8, 6.0, -4);
       }
 
       // Walczak sneak animation

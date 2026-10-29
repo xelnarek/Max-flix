@@ -3,17 +3,182 @@ import * as xb from 'xrblocks';
 import { CHARACTERS } from './characters.ts';
 import {
   ensureLeaderboardServices,
-  initAuth,
-  testFirestoreConnection,
   submitScore,
   getTopLeaderboard,
-  LeaderboardEntry,
 } from './firebase.ts';
 import { MaxFlizGameEngine } from './game.ts';
 import { sound } from './sound.ts';
 import { IntroCutsceneManager } from './introCutscene.ts';
 import { PixelIntroManager } from './pixelIntro.ts';
 import { CharacterId } from './types.ts';
+
+import {
+  getFloorTexture,
+  getWallTexture,
+  getShowroomMarbleFloorTexture,
+  getShowroomWallTexture,
+  getTerminalGraniteFloorTexture,
+  getMaxFlizLogoTexture,
+  getMarbleTexture,
+  getTileBoxTexture,
+  getHazardStripeTexture,
+} from './warehouseAssets.ts';
+
+// Global Unhandled Error Logger
+window.addEventListener('error', (e) => {
+  console.warn('Global Error Captured:', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.warn('Unhandled Rejection Captured:', e.reason);
+});
+
+export class MaxFlizAssetLoader {
+  private isLoaded = false;
+  private isLoading = false;
+  private progress = 0;
+  private overlayElem: HTMLElement | null = null;
+  private fillElem: HTMLElement | null = null;
+  private textElem: HTMLElement | null = null;
+  private percentElem: HTMLElement | null = null;
+
+  constructor() {
+    this.createOverlayUI();
+  }
+
+  private createOverlayUI() {
+    if (document.getElementById('asset-loader-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'asset-loader-overlay';
+    overlay.className = 'asset-loader-overlay hidden';
+    overlay.innerHTML = `
+      <div class="loader-modal-card">
+        <div class="loader-icon-spinner">🏗️</div>
+        <div class="loader-header">MAX-FLIZ 3D LOGISTICS ENGINE</div>
+        <div class="loader-subtitle">Inicjalizacja zasobów, tekstur i silnika 3D...</div>
+        <div class="loader-track">
+          <div id="loader-fill" class="loader-fill" style="width: 0%"></div>
+        </div>
+        <div class="loader-meta">
+          <span id="loader-status-text" class="loader-status-text">Inicjalizacja systemu...</span>
+          <span id="loader-percent" class="loader-percent">0%</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    this.overlayElem = overlay;
+    this.fillElem = document.getElementById('loader-fill');
+    this.textElem = document.getElementById('loader-status-text');
+    this.percentElem = document.getElementById('loader-percent');
+  }
+
+  public show(message: string = 'Wczytywanie...') {
+    if (this.overlayElem) {
+      this.overlayElem.classList.remove('hidden');
+    }
+    this.updateProgress(this.progress, message);
+  }
+
+  public hide() {
+    if (this.overlayElem) {
+      this.overlayElem.classList.add('hidden');
+    }
+  }
+
+  public updateProgress(percent: number, message: string) {
+    this.progress = Math.min(Math.max(percent, 0), 100);
+    if (this.fillElem) {
+      this.fillElem.style.width = `${this.progress}%`;
+    }
+    if (this.textElem) {
+      this.textElem.textContent = message;
+    }
+    if (this.percentElem) {
+      this.percentElem.textContent = `${Math.round(this.progress)}%`;
+    }
+  }
+
+  public async preloadAll(): Promise<void> {
+    if (this.isLoaded) return;
+    if (this.isLoading) return;
+    this.isLoading = true;
+    this.show('Inicjalizacja ładowania zasobów...');
+
+    // Absolute fallback to ensure game is playable even if loader hangs
+    const forceHideTimeout = setTimeout(() => {
+      console.warn('Asset Loader: Forced completion due to timeout');
+      this.hide();
+      this.isLoaded = true;
+      this.isLoading = false;
+    }, 15000);
+
+    try {
+      const yieldControl = () => new Promise(r => requestAnimationFrame(r));
+
+      this.updateProgress(10, 'Weryfikacja kontekstu WebGL & Canvas...');
+      await new Promise((r) => setTimeout(r, 60));
+
+      this.updateProgress(30, 'Generowanie tekstur: Podłogi & Ściany...');
+      getFloorTexture();
+      await yieldControl();
+      getWallTexture();
+      await yieldControl();
+      
+      this.updateProgress(45, 'Generowanie tekstur: Showroom...');
+      getShowroomMarbleFloorTexture();
+      await yieldControl();
+      getShowroomWallTexture();
+      await yieldControl();
+      getTerminalGraniteFloorTexture();
+      await yieldControl();
+      
+      this.updateProgress(60, 'Generowanie tekstur: Logistyka...');
+      getMaxFlizLogoTexture();
+      await yieldControl();
+      getMarbleTexture('calacatta');
+      await yieldControl();
+      getMarbleTexture('nero');
+      await yieldControl();
+      getMarbleTexture('wood');
+      await yieldControl();
+      getMarbleTexture('gold_mosaic');
+      await yieldControl();
+      getTileBoxTexture();
+      await yieldControl();
+      getHazardStripeTexture();
+      await yieldControl();
+
+      this.updateProgress(75, 'Inicjalizacja syntezatora dźwięków...');
+      try { sound.initCtx(); } catch(e) { console.warn('Sound Init Notice:', e); }
+      await new Promise((r) => setTimeout(r, 100));
+
+      this.updateProgress(88, 'Łączenie z usługami chmury Firebase...');
+      ensureLeaderboardServices().catch(() => {});
+      await new Promise((r) => setTimeout(r, 100));
+
+      this.updateProgress(100, 'Silnik 3D gotowy do uruchomienia!');
+      await new Promise((r) => setTimeout(r, 200));
+
+      this.isLoaded = true;
+    } catch (err) {
+      console.warn('Asset loader preloading notice:', err);
+      this.isLoaded = true;
+    } finally {
+      clearTimeout(forceHideTimeout);
+      this.isLoading = false;
+      this.hide();
+    }
+  }
+
+  public async waitUntilReady(actionName: string = 'Uruchamianie'): Promise<void> {
+    if (!this.isLoaded) {
+      this.show(`Przygotowywanie zasobów (${actionName})...`);
+      await this.preloadAll();
+    }
+  }
+}
+
+export const assetLoader = new MaxFlizAssetLoader();
 
 class MaxFlizScene extends xb.Script {
   private engine!: MaxFlizGameEngine;
@@ -25,19 +190,23 @@ class MaxFlizScene extends xb.Script {
   private lastCoins: number = 0;
   private lastTimeSeconds: number = 0;
   private lastBossDefeated: boolean = false;
-  private camera!: THREE.PerspectiveCamera;
+  private camera: THREE.PerspectiveCamera;
+  private fallbackScene: THREE.Scene;
 
-  init() {
-    const camera = (xb.core.camera as THREE.PerspectiveCamera) || new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera = camera;
+  constructor() {
+    super();
+    this.fallbackScene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.setupUIAndEngine();
+  }
 
+  private setupUIAndEngine() {
     const handleResize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const aspect = width / height;
 
       if (this.camera) {
-        // Dynamic adaptive FOV: wider for mobile/portrait, optimized for tablet, cinematic for desktop
         if (aspect < 0.75) {
           this.camera.fov = 64;
         } else if (aspect < 1.0) {
@@ -51,8 +220,8 @@ class MaxFlizScene extends xb.Script {
         this.camera.updateProjectionMatrix();
       }
 
-      if (xb.core.renderer) {
-        const renderer = xb.core.renderer as THREE.WebGLRenderer;
+      const renderer = (xb.core?.renderer as THREE.WebGLRenderer) || null;
+      if (renderer) {
         if (typeof renderer.setSize === 'function') {
           renderer.setSize(width, height, false);
         }
@@ -67,36 +236,34 @@ class MaxFlizScene extends xb.Script {
     window.addEventListener('orientationchange', () => setTimeout(handleResize, 150));
     handleResize();
 
-    const hudHeroName = document.getElementById('hud-hero-name')!;
-    const hudHeroRole = document.getElementById('hud-hero-role')!;
-    const heroAvatar = document.getElementById('hero-avatar')!;
-    const hudHpRow = document.getElementById('hud-hp-row')!;
-    const hudScore = document.getElementById('hud-score')!;
-    const hudVip = document.getElementById('hud-vip')!;
-    const hudTimer = document.getElementById('hud-timer')!;
-    const abilityName = document.getElementById('ability-name')!;
-    const abilityCooldownOverlay = document.getElementById('ability-cooldown-overlay')!;
-    const abilityIcon = document.getElementById('ability-icon')!;
+    const hudHeroName = document.getElementById('hud-hero-name');
+    const hudHeroRole = document.getElementById('hud-hero-role');
+    const heroAvatar = document.getElementById('hero-avatar');
+    const hudHpRow = document.getElementById('hud-hp-row');
+    const hudScore = document.getElementById('hud-score');
+    const hudVip = document.getElementById('hud-vip');
+    const hudTimer = document.getElementById('hud-timer');
+    const abilityName = document.getElementById('ability-name');
+    const abilityCooldownOverlay = document.getElementById('ability-cooldown-overlay');
+    const abilityIcon = document.getElementById('ability-icon');
 
-    const titleScreen = document.getElementById('title-screen')!;
-    const hudTop = document.getElementById('hud-top')!;
-    const hudBottom = document.getElementById('hud-bottom')!;
-    const touchControls = document.getElementById('touch-controls')!;
-    const pauseModal = document.getElementById('pause-modal')!;
-    const victoryModal = document.getElementById('victory-modal')!;
-    const gameoverModal = document.getElementById('gameover-modal')!;
+    const titleScreen = document.getElementById('title-screen');
+    const hudTop = document.getElementById('hud-top');
+    const hudBottom = document.getElementById('hud-bottom');
+    const touchControls = document.getElementById('touch-controls');
+    const pauseModal = document.getElementById('pause-modal');
+    const victoryModal = document.getElementById('victory-modal');
+    const gameoverModal = document.getElementById('gameover-modal');
 
-    const victoryScore = document.getElementById('victory-score')!;
-    const victoryTime = document.getElementById('victory-time')!;
-    const gameoverReason = document.getElementById('gameover-reason')!;
+    const victoryScore = document.getElementById('victory-score');
+    const victoryTime = document.getElementById('victory-time');
+    const gameoverReason = document.getElementById('gameover-reason');
 
-    // Boss Bar elements
     const bossHudBar = document.getElementById('boss-hud-bar');
     const bossNameElem = document.getElementById('boss-name');
     const bossHpTextElem = document.getElementById('boss-hp-text');
     const bossHpFillElem = document.getElementById('boss-hp-fill');
 
-    // Perk HUD elements
     const perkBadgeShield = document.getElementById('perk-badge-shield');
     const perkBadgeJump = document.getElementById('perk-badge-jump');
     const perkJumpTimer = document.getElementById('perk-jump-timer');
@@ -106,11 +273,6 @@ class MaxFlizScene extends xb.Script {
     const perkSpeedTimer = document.getElementById('perk-speed-timer');
 
     const container = document.getElementById('game-canvas-container');
-    if (container && xb.core.renderer && xb.core.renderer.domElement) {
-      if (xb.core.renderer.domElement.parentElement !== container) {
-        container.appendChild(xb.core.renderer.domElement);
-      }
-    }
 
     interface ActiveToast {
       element: HTMLElement;
@@ -120,13 +282,12 @@ class MaxFlizScene extends xb.Script {
       maxAge: number;
     }
     const activeToasts: ActiveToast[] = [];
-
     const activeDialogueThrottle = new Map<string, number>();
 
     const createDialogueCard = (text: string, speakerType: string, side: 'left' | 'right' = 'right') => {
       const containerId = side === 'left' ? 'dialogue-container-left' : 'dialogue-container-right';
-      const container = document.getElementById(containerId);
-      if (!container) return;
+      const containerElem = document.getElementById(containerId);
+      if (!containerElem) return;
 
       const now = Date.now();
       const throttleKey = `${speakerType}_${side}`;
@@ -134,7 +295,6 @@ class MaxFlizScene extends xb.Script {
       if (now - lastShout < 3500) return;
       activeDialogueThrottle.set(throttleKey, now);
 
-      // Clear both containers to prevent any overlapping cards on screen
       const leftContainer = document.getElementById('dialogue-container-left');
       const rightContainer = document.getElementById('dialogue-container-right');
       if (leftContainer) leftContainer.innerHTML = '';
@@ -143,9 +303,9 @@ class MaxFlizScene extends xb.Script {
       const card = document.createElement('div');
       const isHero = side === 'left';
       card.className = `dialogue-box-card ${isHero ? 'hero-style' : 'enemy-style'}`;
-      
+
       const meta = isHero ? getHeroMeta() : getEnemyMeta(speakerType);
-      
+
       card.innerHTML = `
         <div class="dialogue-box-avatar">${meta.avatar}</div>
         <div class="dialogue-box-content">
@@ -156,12 +316,12 @@ class MaxFlizScene extends xb.Script {
         </div>
       `;
 
-      container.appendChild(card);
+      containerElem.appendChild(card);
 
       setTimeout(() => {
         card.classList.add('fading-out');
         setTimeout(() => {
-          if (card.parentElement === container) card.remove();
+          if (card.parentElement === containerElem) card.remove();
         }, 400);
       }, 4500);
     };
@@ -174,12 +334,12 @@ class MaxFlizScene extends xb.Script {
       return {
         name: def.name,
         role: 'BOHATER LOGISTYKI',
-        avatar: avatarIcons[this.selectedCharId] || '👷‍♂️'
+        avatar: avatarIcons[this.selectedCharId] || '👷‍♂️',
       };
     };
 
     const getEnemyMeta = (type: string) => {
-      const metaMap: Record<string, { name: string, role: string, avatar: string }> = {
+      const metaMap: Record<string, { name: string; role: string; avatar: string }> = {
         kurier: { name: 'Rudy z DPD', role: 'Johnny Walker Express', avatar: '🚚' },
         walczak: { name: 'Walczak', role: 'Były Kierownik', avatar: '👔' },
         krol_leto: { name: 'Król-Leto', role: 'Dyrektor Generalny', avatar: '👑' },
@@ -245,15 +405,12 @@ class MaxFlizScene extends xb.Script {
           continue;
         }
 
-        // Float upward in 3D world space over time
         const floatSpeed = t.type === 'enemy_shout' ? 0.22 : 0.8;
         t.worldPos.y += dt * floatSpeed;
 
-        // Project 3D world pos to 2D screen coordinates
         tempVec.copy(t.worldPos);
-        tempVec.project(camera);
+        tempVec.project(this.camera);
 
-        // Hide if behind camera (z > 1) or far off screen
         if (
           tempVec.z > 1.0 ||
           tempVec.x < -1.3 ||
@@ -271,7 +428,6 @@ class MaxFlizScene extends xb.Script {
 
         t.element.style.transform = `translate3d(${Math.round(sx)}px, ${Math.round(sy)}px, 0px) translate(-50%, -50%)`;
 
-        // Smooth opacity fade in & out
         const progress = t.age / t.maxAge;
         let opacity = 1;
         if (progress < 0.08) {
@@ -304,8 +460,8 @@ class MaxFlizScene extends xb.Script {
 
     this.engine = new MaxFlizGameEngine(
       this as unknown as THREE.Scene,
-      camera,
-      (document.getElementById('game-canvas-container') || document.body) as HTMLElement,
+      this.camera,
+      (container || document.body) as HTMLElement,
       {
         onFloatingText: (text, x, y, z, type, metadata) => {
           spawnFloatingToast(text, x, y, z, type, metadata);
@@ -314,10 +470,11 @@ class MaxFlizScene extends xb.Script {
           showPerkDropBanner(name, icon, desc, color);
         },
         onScoreUpdate: (score, collectedVip, totalVip) => {
-          hudScore.textContent = score.toString();
-          hudVip.textContent = `${collectedVip} / ${totalVip}`;
+          if (hudScore) hudScore.textContent = score.toString();
+          if (hudVip) hudVip.textContent = `${collectedVip} / ${totalVip}`;
         },
         onHpUpdate: (hp, maxHp) => {
+          if (!hudHpRow) return;
           hudHpRow.innerHTML = '';
           for (let i = 0; i < maxHp; i++) {
             const span = document.createElement('span');
@@ -327,7 +484,9 @@ class MaxFlizScene extends xb.Script {
           }
         },
         onAbilityCooldown: (progress, ready) => {
-          abilityCooldownOverlay.style.width = `${(1 - progress) * 100}%`;
+          if (abilityCooldownOverlay) {
+            abilityCooldownOverlay.style.width = `${(1 - progress) * 100}%`;
+          }
           const btn = document.getElementById('btn-ability');
           if (btn) {
             btn.style.opacity = ready ? '1' : '0.6';
@@ -388,12 +547,12 @@ class MaxFlizScene extends xb.Script {
             }
           }
 
-          victoryScore.textContent = score.toString();
-          victoryTime.textContent = timeStr;
-          victoryModal.classList.remove('hidden');
-          hudTop.classList.add('hidden');
-          hudBottom.classList.add('hidden');
-          touchControls.classList.add('hidden');
+          if (victoryScore) victoryScore.textContent = score.toString();
+          if (victoryTime) victoryTime.textContent = timeStr;
+          victoryModal?.classList.remove('hidden');
+          hudTop?.classList.add('hidden');
+          hudBottom?.classList.add('hidden');
+          touchControls?.classList.add('hidden');
           bossHudBar?.classList.add('hidden');
 
           const nickInput = document.getElementById('player-nickname-input') as HTMLInputElement | null;
@@ -412,26 +571,25 @@ class MaxFlizScene extends xb.Script {
             feedbackMsg.textContent = '';
           }
 
-          // Auto-advance logic for "connected" sectors
           if (levelId < 3) {
             setTimeout(() => {
-              if (!victoryModal.classList.contains('hidden')) {
+              if (victoryModal && !victoryModal.classList.contains('hidden')) {
                 this.selectedLevelId = levelId + 1;
                 this.engine.startGame(this.selectedLevelId);
                 victoryModal.classList.add('hidden');
-                hudTop.classList.remove('hidden');
-                hudBottom.classList.remove('hidden');
-                touchControls.classList.remove('hidden');
+                hudTop?.classList.remove('hidden');
+                hudBottom?.classList.remove('hidden');
+                touchControls?.classList.remove('hidden');
               }
-            }, 6500); // Give 6.5s to see score/save result
+            }, 6500);
           }
         },
         onGameOver: (reason) => {
-          gameoverReason.textContent = reason;
-          gameoverModal.classList.remove('hidden');
-          hudTop.classList.add('hidden');
-          hudBottom.classList.add('hidden');
-          touchControls.classList.add('hidden');
+          if (gameoverReason) gameoverReason.textContent = reason;
+          gameoverModal?.classList.remove('hidden');
+          hudTop?.classList.add('hidden');
+          hudBottom?.classList.add('hidden');
+          touchControls?.classList.add('hidden');
           bossHudBar?.classList.add('hidden');
         },
         onBossUpdate: (name, hp, maxHp, visible, phase) => {
@@ -439,7 +597,7 @@ class MaxFlizScene extends xb.Script {
           if (visible && hp > 0) {
             bossHudBar.classList.remove('hidden');
             bossHudBar.classList.toggle('phase-2', phase === 2);
-            bossNameElem.textContent = phase === 2 ? `💢 ${name} (SZAŁ!)` : `👔 ${name}`;
+            bossNameElem.textContent = phase === 2 ? `👔 ${name} (SZAŁ!)` : `👔 ${name}`;
             bossHpTextElem.textContent = `${hp} / ${maxHp}`;
             bossHpFillElem.style.width = `${(hp / maxHp) * 100}%`;
           } else {
@@ -450,31 +608,52 @@ class MaxFlizScene extends xb.Script {
       }
     );
 
-    this.engine.threeRenderer = xb.core.renderer as THREE.WebGLRenderer;
+    this.cutscene = new IntroCutsceneManager(
+      xb.core?.scene || this.fallbackScene,
+      this.camera,
+      (xb.core?.renderer as THREE.WebGLRenderer) || null,
+      {
+        onComplete: () => {
+          if (titleScreen) {
+            titleScreen.classList.remove('hidden');
+            titleScreen.style.setProperty('display', 'flex', 'important');
+          }
+          this.engine.startTitle();
+        },
+        onStartGame: () => {
+          doStartGame();
+        },
+      }
+    );
+
+    this.pixelIntro = new PixelIntroManager({
+      onComplete: () => {
+        if (titleScreen) {
+          titleScreen.classList.remove('hidden');
+          titleScreen.style.display = 'flex';
+        }
+        this.engine.startTitle();
+      },
+      onStartGame: () => {
+        doStartGame();
+      },
+    });
 
     const updateCharacterUI = (id: CharacterId) => {
       this.selectedCharId = id;
       const def = CHARACTERS[id];
-      hudHeroName.textContent = def.name;
-      hudHeroRole.textContent = def.role;
-      abilityName.textContent = def.abilityName;
+      if (hudHeroName) hudHeroName.textContent = def.name;
+      if (hudHeroRole) hudHeroRole.textContent = def.role;
+      if (abilityName) abilityName.textContent = def.abilityName;
 
       const avatarIcons: Record<CharacterId, string> = {
-        marcin: '👷‍♂️',
-        grzesiek: '🚜',
-        dawid: '💪',
-        mateusz: '🎮',
-        piotr: '👨‍🔧',
+        marcin: '👷‍♂️', grzesiek: '🚜', dawid: '💪', mateusz: '🎮', piotr: '👨‍🔧',
       };
       const abilityIcons: Record<CharacterId, string> = {
-        marcin: '📜',
-        grzesiek: '⚡',
-        dawid: '🧱',
-        mateusz: '☕',
-        piotr: '🍾',
+        marcin: '📜', grzesiek: '⚡', dawid: '🧱', mateusz: '☕', piotr: '🍾',
       };
-      heroAvatar.textContent = avatarIcons[id];
-      abilityIcon.textContent = abilityIcons[id] || '⚡';
+      if (heroAvatar) heroAvatar.textContent = avatarIcons[id];
+      if (abilityIcon) abilityIcon.textContent = abilityIcons[id] || '⚡';
 
       const attackNameElem = document.getElementById('attack-name');
       const attackIconElem = document.getElementById('attack-icon');
@@ -486,11 +665,7 @@ class MaxFlizScene extends xb.Script {
         piotr: 'Rzut Kluczem Francuskim',
       };
       const attackIcons: Record<CharacterId, string> = {
-        marcin: '🥊',
-        grzesiek: '🔨',
-        dawid: '🔪',
-        mateusz: '☕',
-        piotr: '🔧',
+        marcin: '🥊', grzesiek: '🔨', dawid: '🔪', mateusz: '☕', piotr: '🔧',
       };
       if (attackNameElem) attackNameElem.textContent = attackNames[id] || 'Atak';
       if (attackIconElem) attackIconElem.textContent = attackIcons[id] || '🥊';
@@ -567,11 +742,7 @@ class MaxFlizScene extends xb.Script {
           const rankIcons = ['🥇', '🥈', '🥉'];
           const rankDisplay = idx < 3 ? rankIcons[idx] : `${idx + 1}.`;
           const heroIcons: Record<string, string> = {
-            Marcin: '👷‍♂️',
-            Grzesiek: '🚜',
-            Dawid: '💪',
-            Mateusz: '☕',
-            Piotr: '👨‍🔧',
+            Marcin: '👷‍♂️', Grzesiek: '🚜', Dawid: '💪', Mateusz: '☕', Piotr: '👨‍🔧',
           };
           const heroIcon = heroIcons[entry.hero] || '👷‍♂️';
           const bossBadge = entry.bossDefeated ? '<span title="Były Kierownik Walczak skasowany!">👔💥</span>' : '';
@@ -607,7 +778,10 @@ class MaxFlizScene extends xb.Script {
 
     document.querySelectorAll('.menu-tab-btn').forEach((tabBtn) => {
       const activateTab = (e?: Event) => {
-        e?.stopPropagation();
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         document.querySelectorAll('.menu-tab-btn').forEach((b) => b.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
         tabBtn.classList.add('active');
@@ -621,11 +795,15 @@ class MaxFlizScene extends xb.Script {
         }
       };
       tabBtn.addEventListener('click', activateTab);
+      tabBtn.addEventListener('touchend', activateTab);
     });
 
     document.querySelectorAll('.char-card').forEach((card) => {
       const selectChar = (e?: Event) => {
-        e?.stopPropagation();
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         document.querySelectorAll('.char-card').forEach((c) => c.classList.remove('active'));
         card.classList.add('active');
         const charId = card.getAttribute('data-char') as CharacterId;
@@ -634,6 +812,7 @@ class MaxFlizScene extends xb.Script {
         }
       };
       card.addEventListener('click', selectChar);
+      card.addEventListener('touchend', selectChar);
     });
 
     document.querySelectorAll('.btn-perk-activate').forEach((btn) => {
@@ -652,21 +831,29 @@ class MaxFlizScene extends xb.Script {
 
     document.querySelectorAll('.zone-card').forEach((card) => {
       const selectZone = (e?: Event) => {
-        e?.stopPropagation();
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         document.querySelectorAll('.zone-card').forEach((c) => c.classList.remove('active'));
         card.classList.add('active');
         this.selectedLevelId = parseInt(card.getAttribute('data-level') || '1', 10);
       };
       card.addEventListener('click', selectZone);
+      card.addEventListener('touchend', selectZone);
     });
 
     let startingGame = false;
-    const doStartGame = (e?: Event) => {
+    const doStartGame = async (e?: Event) => {
       if (startingGame) return;
-      startingGame = true;
-      e?.stopPropagation();
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
 
-      // Cleanly stop any running intros to ensure engine update loop runs smoothly
+      await assetLoader.waitUntilReady('Gra 3D');
+
+      startingGame = true;
       if (this.pixelIntro && this.pixelIntro.isRunning()) {
         this.pixelIntro.stop();
       }
@@ -676,33 +863,74 @@ class MaxFlizScene extends xb.Script {
 
       const storyModal = document.getElementById('story-intro-modal');
       storyModal?.classList.add('hidden');
-      titleScreen.classList.add('hidden');
-      pauseModal.classList.add('hidden');
-      victoryModal.classList.add('hidden');
-      gameoverModal.classList.add('hidden');
+      if (titleScreen) {
+        titleScreen.classList.add('hidden');
+        titleScreen.style.setProperty('display', 'none', 'important');
+      }
+      pauseModal?.classList.add('hidden');
+      victoryModal?.classList.add('hidden');
+      gameoverModal?.classList.add('hidden');
 
-      hudTop.classList.remove('hidden');
-      hudBottom.classList.remove('hidden');
-      touchControls.classList.remove('hidden');
+      hudTop?.classList.remove('hidden');
+      hudBottom?.classList.remove('hidden');
+      touchControls?.classList.remove('hidden');
 
       this.engine.startGame(this.selectedLevelId);
       setTimeout(() => { startingGame = false; }, 600);
     };
 
     const startBtn = document.getElementById('btn-start-game');
-    startBtn?.addEventListener('click', (e) => doStartGame(e));
-    startBtn?.addEventListener('touchend', (e) => doStartGame(e));
+    startBtn?.addEventListener('click', doStartGame);
+    startBtn?.addEventListener('touchend', doStartGame);
 
     window.addEventListener('keydown', (e) => {
       const storyModal = document.getElementById('story-intro-modal');
       const modalVisible = storyModal && !storyModal.classList.contains('hidden');
-      if (!titleScreen.classList.contains('hidden')) {
+      if (titleScreen && !titleScreen.classList.contains('hidden')) {
         if ((e.code === 'Enter' || e.code === 'Space') && !modalVisible) {
           doStartGame();
           e.preventDefault();
         }
       }
     });
+
+    const launch3dCutscene = async (e?: Event) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      await assetLoader.waitUntilReady('Scenka 3D');
+      if (titleScreen) {
+        titleScreen.classList.add('hidden');
+        titleScreen.style.setProperty('display', 'none', 'important');
+      }
+      document.getElementById('story-intro-modal')?.classList.add('hidden');
+      this.cutscene.start();
+    };
+
+    const launchPixelIntro = async (e?: Event) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      await assetLoader.waitUntilReady('Pixel Intro');
+      if (titleScreen) {
+        titleScreen.classList.add('hidden');
+        titleScreen.style.setProperty('display', 'none', 'important');
+      }
+      document.getElementById('story-intro-modal')?.classList.add('hidden');
+      this.pixelIntro.start();
+    };
+
+    document.getElementById('btn-open-story-modal')?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-open-3d-cutscene')?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-open-3d-cutscene')?.addEventListener('touchend', launch3dCutscene);
+
+    document.getElementById('btn-top-intro-3d')?.addEventListener('click', launch3dCutscene);
+    document.getElementById('btn-top-intro-3d')?.addEventListener('touchend', launch3dCutscene);
+
+    document.getElementById('btn-open-pixel-intro')?.addEventListener('click', launchPixelIntro);
+    document.getElementById('btn-open-pixel-intro')?.addEventListener('touchend', launchPixelIntro);
 
     document.getElementById('btn-attack')?.addEventListener('click', () => {
       this.engine.triggerAttack();
@@ -745,33 +973,12 @@ class MaxFlizScene extends xb.Script {
 
     const handlePause = () => {
       this.engine.togglePause();
-      pauseModal.classList.remove('hidden');
+      pauseModal?.classList.remove('hidden');
     };
     document.getElementById('btn-top-pause')?.addEventListener('click', handlePause);
     document.getElementById('btn-pause')?.addEventListener('click', handlePause);
 
-    this.cutscene = new IntroCutsceneManager(xb.core.scene, this.camera, xb.core.renderer as THREE.WebGLRenderer, {
-      onComplete: () => {
-        titleScreen.classList.remove('hidden');
-        this.engine.startTitle();
-      },
-      onStartGame: () => {
-        doStartGame();
-      },
-    });
-
-    this.pixelIntro = new PixelIntroManager({
-      onComplete: () => {
-        titleScreen.classList.remove('hidden');
-        this.engine.startTitle();
-      },
-      onStartGame: () => {
-        doStartGame();
-      },
-    });
-
     const storyModal = document.getElementById('story-intro-modal');
-    const btnOpenStory = document.getElementById('btn-open-story-modal');
     const btnCloseStory = document.getElementById('btn-close-story');
     const btnStoryPrev = document.getElementById('btn-story-prev') as HTMLButtonElement | null;
     const btnStoryNext = document.getElementById('btn-story-next') as HTMLButtonElement | null;
@@ -806,23 +1013,6 @@ class MaxFlizScene extends xb.Script {
         }
       }
     };
-
-    const launch3dCutscene = () => {
-      titleScreen.classList.add('hidden');
-      storyModal?.classList.add('hidden');
-      this.cutscene.start();
-    };
-
-    const launchPixelIntro = () => {
-      titleScreen.classList.add('hidden');
-      storyModal?.classList.add('hidden');
-      this.pixelIntro.start();
-    };
-
-    btnOpenStory?.addEventListener('click', launch3dCutscene);
-    document.getElementById('btn-open-3d-cutscene')?.addEventListener('click', launch3dCutscene);
-    document.getElementById('btn-top-intro-3d')?.addEventListener('click', launch3dCutscene);
-    document.getElementById('btn-open-pixel-intro')?.addEventListener('click', launchPixelIntro);
 
     btnCloseStory?.addEventListener('click', () => {
       storyModal?.classList.add('hidden');
@@ -859,67 +1049,68 @@ class MaxFlizScene extends xb.Script {
     document.getElementById('btn-camera')?.addEventListener('click', handleCameraToggle);
     document.getElementById('btn-top-camera')?.addEventListener('click', handleCameraToggle);
 
-    document.getElementById('btn-attack')?.addEventListener('click', () => {
-      this.engine.triggerAttack();
-    });
-
-    document.getElementById('btn-ability')?.addEventListener('click', () => {
-      this.engine.triggerAbility();
-    });
-
     document.getElementById('btn-resume')?.addEventListener('click', () => {
-      pauseModal.classList.add('hidden');
+      pauseModal?.classList.add('hidden');
       this.engine.togglePause();
     });
 
     document.getElementById('btn-restart-pause')?.addEventListener('click', () => {
-      pauseModal.classList.add('hidden');
+      pauseModal?.classList.add('hidden');
       this.engine.startGame(this.selectedLevelId);
     });
 
     document.getElementById('btn-menu-pause')?.addEventListener('click', () => {
-      pauseModal.classList.add('hidden');
-      hudTop.classList.add('hidden');
-      hudBottom.classList.add('hidden');
-      touchControls.classList.add('hidden');
-      titleScreen.classList.remove('hidden');
+      pauseModal?.classList.add('hidden');
+      hudTop?.classList.add('hidden');
+      hudBottom?.classList.add('hidden');
+      touchControls?.classList.add('hidden');
+      if (titleScreen) {
+        titleScreen.classList.remove('hidden');
+        titleScreen.style.setProperty('display', 'flex', 'important');
+      }
       this.engine.startTitle();
     });
 
     document.getElementById('btn-next-level')?.addEventListener('click', () => {
-      victoryModal.classList.add('hidden');
-      hudTop.classList.remove('hidden');
-      hudBottom.classList.remove('hidden');
-      touchControls.classList.remove('hidden');
+      victoryModal?.classList.add('hidden');
+      hudTop?.classList.remove('hidden');
+      hudBottom?.classList.remove('hidden');
+      touchControls?.classList.remove('hidden');
       this.selectedLevelId = (this.selectedLevelId % 3) + 1;
       this.engine.startGame(this.selectedLevelId);
     });
 
     document.getElementById('btn-replay-level')?.addEventListener('click', () => {
-      victoryModal.classList.add('hidden');
-      hudTop.classList.remove('hidden');
-      hudBottom.classList.remove('hidden');
-      touchControls.classList.remove('hidden');
+      victoryModal?.classList.add('hidden');
+      hudTop?.classList.remove('hidden');
+      hudBottom?.classList.remove('hidden');
+      touchControls?.classList.remove('hidden');
       this.engine.startGame(this.selectedLevelId);
     });
 
     document.getElementById('btn-menu-victory')?.addEventListener('click', () => {
-      victoryModal.classList.add('hidden');
-      titleScreen.classList.remove('hidden');
+      victoryModal?.classList.add('hidden');
+      if (titleScreen) {
+        titleScreen.classList.remove('hidden');
+        titleScreen.style.setProperty('display', 'flex', 'important');
+      }
       this.engine.startTitle();
     });
 
     document.getElementById('btn-retry')?.addEventListener('click', () => {
-      gameoverModal.classList.add('hidden');
-      hudTop.classList.remove('hidden');
-      hudBottom.classList.remove('hidden');
-      touchControls.classList.remove('hidden');
+      gameoverModal?.classList.add('hidden');
+      hudTop?.classList.remove('hidden');
+      hudBottom?.classList.remove('hidden');
+      touchControls?.classList.remove('hidden');
       this.engine.startGame(this.selectedLevelId);
     });
 
     document.getElementById('btn-menu-gameover')?.addEventListener('click', () => {
-      gameoverModal.classList.add('hidden');
-      titleScreen.classList.remove('hidden');
+      gameoverModal?.classList.add('hidden');
+      if (titleScreen) {
+        titleScreen.classList.remove('hidden');
+        titleScreen.style.setProperty('display', 'flex', 'important');
+      }
       this.engine.startTitle();
     });
 
@@ -970,8 +1161,11 @@ class MaxFlizScene extends xb.Script {
 
     this.setupTouchControls();
 
+    if (titleScreen) {
+      titleScreen.classList.remove('hidden');
+      titleScreen.style.display = 'flex';
+    }
     this.engine.startTitle();
-    // Start on title screen with immediate responsiveness; intros available on demand!
   }
 
   private setupTouchControls() {
@@ -1077,22 +1271,46 @@ class MaxFlizScene extends xb.Script {
     });
   }
 
-  update() {
-    const rawDt = xb.getDeltaTime();
-    const dt = Math.min(Math.max(rawDt || 0.016, 0.001), 0.08);
+  init() {
+    const scene = xb.core?.scene || this.fallbackScene;
+    const camera = (xb.core?.camera as THREE.PerspectiveCamera) || this.camera;
+    const renderer = (xb.core?.renderer as THREE.WebGLRenderer) || null;
 
-    if (this.pixelIntro && this.pixelIntro.isRunning()) {
-      // Pixel intro updates internally via rAF
-    } else if (this.cutscene && this.cutscene.isRunning()) {
-      this.cutscene.update(dt);
-    } else if (this.engine) {
-      this.engine.update(dt);
-      const minimapCanvas = document.getElementById('minimap-canvas') as HTMLCanvasElement | null;
-      if (minimapCanvas) {
-        this.engine.renderMinimap(minimapCanvas);
-      }
+    if (this.engine) {
+      this.engine.setScene(scene);
+      this.engine.setCamera(camera);
+      if (renderer) this.engine.threeRenderer = renderer;
     }
-    (this as any)._updateToasts?.(dt);
+
+    if (this.cutscene) {
+      this.cutscene.setScene(scene);
+      this.cutscene.setCamera(camera);
+    }
+
+    this.camera = camera;
+    this.engine.startTitle();
+  }
+
+  update() {
+    try {
+      const rawDt = xb.getDeltaTime();
+      const dt = Math.min(Math.max(rawDt || 0.016, 0.001), 0.08);
+
+      if (this.pixelIntro && this.pixelIntro.isRunning()) {
+        // Pixel intro updates internally via RAF
+      } else if (this.cutscene && this.cutscene.isRunning()) {
+        this.cutscene.update(dt);
+      } else if (this.engine) {
+        this.engine.update(dt);
+        const minimapCanvas = document.getElementById('minimap-canvas') as HTMLCanvasElement | null;
+        if (minimapCanvas) {
+          this.engine.renderMinimap(minimapCanvas);
+        }
+      }
+      (this as any)._updateToasts?.(dt);
+    } catch (err) {
+      console.warn('Loop Error:', err);
+    }
   }
 
   onSelectEnd(event: xb.SelectEvent) {
@@ -1100,44 +1318,176 @@ class MaxFlizScene extends xb.Script {
   }
 }
 
+// Visual Polish / Theme Injections (Integrated to ensure execution)
+const injectThemeStyles = () => {
+  if (document.getElementById('maxfliz-inline-theme')) return;
+  
+  // Set theme variables
+  const root = document.documentElement;
+  root.style.setProperty('--maxfliz-bg-1', '#050b14');
+  root.style.setProperty('--maxfliz-bg-2', '#0b1220');
+  root.style.setProperty('--maxfliz-accent', '#f59e0b');
+  root.style.setProperty('--maxfliz-blue', '#38bdf8');
+
+  const style = document.createElement('style');
+  style.id = 'maxfliz-inline-theme';
+  style.textContent = `
+    #game-shell {
+      z-index: 10000 !important;
+      position: fixed !important;
+      inset: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      pointer-events: none !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    .game-screen {
+      z-index: 10001 !important;
+      position: fixed !important;
+      inset: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      pointer-events: auto !important;
+      background: rgba(11, 15, 25, 0.9) !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    .hud-layer {
+      pointer-events: none !important;
+    }
+    .hud-layer button, .hud-layer .minimap-container {
+      pointer-events: auto !important;
+    }
+    #title-screen {
+      display: flex !important;
+    }
+    #asset-loader-overlay {
+      z-index: 20000 !important;
+      background: #0b0f19 !important;
+    }
+    #game-canvas-container {
+      z-index: 1 !important;
+      position: absolute !important;
+      inset: 0 !important;
+      pointer-events: auto !important;
+    }
+    canvas {
+      z-index: 1 !important;
+      pointer-events: auto !important;
+    }
+    #emergency-start-btn {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30000;
+      background: #f59e0b;
+      color: #000;
+      padding: 18px 30px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 16px;
+      border: 3px solid white;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Health check loop to ensure UI shell is never buried or hidden by external factors
+  setInterval(() => {
+    const shell = document.getElementById('game-shell');
+    if (shell) {
+      if (shell.classList.contains('hidden')) shell.classList.remove('hidden');
+      if (shell.style.display !== 'flex') shell.style.setProperty('display', 'flex', 'important');
+      if (shell.style.zIndex !== '10000') shell.style.setProperty('z-index', '10000', 'important');
+      if (shell.style.opacity !== '1') shell.style.setProperty('opacity', '1', 'important');
+    }
+    const assetLoader = document.getElementById('asset-loader-overlay');
+    if (assetLoader && assetLoader.classList.contains('hidden')) {
+      if (assetLoader.style.display !== 'none') assetLoader.style.setProperty('display', 'none', 'important');
+    }
+  }, 2000);
+};
+
 async function startApp() {
-  const options = new xb.Options();
-  options.setAppTitle('Max-Fliz Magazyn Showdown 3D');
-  options.setAppDescription('Trójwymiarowa platformówka izometryczna w szalonym magazynie firmy Max-Fliz.');
-  options.reticles.enabled = false;
-  if ((options as any).xrButton) {
-    (options as any).xrButton.showEnterSimulatorButton = false;
-  }
+  console.log('App Booting: Max-Fliz 3D');
+  injectThemeStyles();
 
-  xb.add(new MaxFlizScene());
-  await xb.init(options);
-
-  if (xb.core.renderer) {
-    const webglRenderer = xb.core.renderer as THREE.WebGLRenderer;
-    webglRenderer.outputColorSpace = THREE.SRGBColorSpace;
-    webglRenderer.setClearColor(0x0b1020, 1);
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
-    if (typeof webglRenderer.setPixelRatio === 'function') {
-      webglRenderer.setPixelRatio(dpr);
-    }
-    if ('toneMapping' in webglRenderer) {
-      webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-      webglRenderer.toneMappingExposure = 1.12;
-    }
-    if (webglRenderer.shadowMap) {
-      webglRenderer.shadowMap.enabled = true;
-      webglRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    }
-  }
-
-  const xrWrapper = document.getElementById('XRButtonWrapper');
-  if (xrWrapper) {
-    xrWrapper.style.display = 'none';
-  }
+  const emergencyBtn = document.createElement('button');
+  emergencyBtn.id = 'emergency-start-btn';
+  emergencyBtn.textContent = 'ROZPOCZNIJ GRĘ (START)';
+  emergencyBtn.style.display = 'none';
+  document.body.appendChild(emergencyBtn);
 
   const titleScreen = document.getElementById('title-screen');
-  if (titleScreen) {
-    titleScreen.classList.remove('hidden');
+  const shell = document.getElementById('game-shell');
+
+  try {
+    // 1. Show Asset Loader immediately
+    assetLoader.show('Inicjalizacja systemu...');
+    
+    // 2. Preload all textures and sounds (non-blocking)
+    await assetLoader.preloadAll();
+    
+    // 3. Setup Shell visibility
+    if (shell) {
+      shell.classList.remove('hidden');
+      shell.style.setProperty('display', 'flex', 'important');
+    }
+
+    // Show emergency button after 5 seconds if still stuck
+    const emergencyTimeout = setTimeout(() => {
+      emergencyBtn.style.display = 'block';
+    }, 5000);
+
+    // 4. Initialize XR Blocks Options
+    const options = new xb.Options();
+    options.setAppTitle('Max-Fliz Magazyn Showdown 3D');
+    options.reticles.enabled = false;
+    
+    // 5. Create Scene Script (Engine init is now fast due to preloaded assets)
+    const sceneScript = new MaxFlizScene();
+    xb.add(sceneScript);
+
+    emergencyBtn.onclick = () => {
+      console.log('Emergency Action Triggered');
+      assetLoader.hide();
+      if (titleScreen) {
+        titleScreen.classList.remove('hidden');
+        titleScreen.style.setProperty('display', 'flex', 'important');
+      }
+      (sceneScript as any).engine?.startTitle();
+      emergencyBtn.remove();
+    };
+
+    // 6. Init WebXR Engine
+    try {
+      await Promise.race([
+        xb.init(options),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Init Timeout')), 15000))
+      ]);
+    } catch (e) {
+      console.warn('Boot engine race condition handled:', e);
+    }
+
+    clearTimeout(emergencyTimeout);
+    assetLoader.hide();
+
+    if (titleScreen) {
+      titleScreen.classList.remove('hidden');
+      titleScreen.style.setProperty('display', 'flex', 'important');
+    }
+
+  } catch (err) {
+    console.error('Boot Critical Error:', err);
+    assetLoader.hide();
+    emergencyBtn.style.display = 'block';
   }
 }
 
@@ -1146,4 +1496,5 @@ if (document.readyState === 'loading') {
 } else {
   void startApp();
 }
+
 
